@@ -1,0 +1,85 @@
+{
+    "version": "1.0",
+    "description": "Skill activation triggers for Claude Code. Controls when skills automatically suggest or block actions.",
+    "skills": {
+        "skill-developer": {
+            "type": "domain",
+            "enforcement": "suggest",
+            "priority": "high",
+            "description": "Meta-skill for creating and managing Claude Code skills",
+            "promptTriggers": {
+                "keywords": [
+                    "skill system",
+                    "create skill",
+                    "add skill",
+                    "skill triggers",
+                    "skill rules",
+                    "hook system",
+                    "skill development",
+                    "skill-rules.json"
+                ],
+                "intentPatterns": [
+                    "(how do|how does|explain).*?skill",
+                    "(create|add|modify|build).*?skill",
+                    "skill.*?(work|trigger|activate|system)"
+                ]
+            }
+        },
+        "visualization-notion": {
+            "type": "domain",
+            "enforcement": "suggest",
+            "priority": "medium",
+            "description": "Notion 페이지/DB를 시각적 다이어그램으로 변환, 파이프라인 QA 결과 시각화",
+            "promptTriggers": {
+                "keywords": [
+                    "notion 시각화",
+                    "파이프라인 대시보드",
+                    "pipeline dashboard",
+                    "qa 결과 시각화"
+                ],
+                "intentPatterns": [
+                    "(visualize|시각화).*notion",
+                    "pipeline.*dashboard"
+                ]
+            }
+        },
+        "notion_logger": {
+            "type": "procedure",
+            "enforcement": "suggest",
+            "priority": "high",
+            "description": "파이프라인 실행 결과를 Notion PIPELINE_LOG에 기록",
+            "promptTriggers": {
+                "keywords": [
+                    "notion 로그",
+                    "pipeline log",
+                    "파이프라인 로그"
+                ],
+                "intentPatterns": [
+                    "(write|기록).*notion.*log"
+                ]
+            }
+        }
+    },
+    "notes": {
+        "enforcement_types": {
+            "suggest": "Skill suggestion appears but doesn't block execution",
+            "block": "Requires skill to be used before proceeding (guardrail)",
+            "warn": "Shows warning but allows proceeding"
+        },
+        "priority_levels": {
+            "critical": "Highest - Always trigger when matched",
+            "high": "Important - Trigger for most matches",
+            "medium": "Moderate - Trigger for clear matches",
+            "low": "Optional - Trigger only for explicit matches"
+        },
+        "customization": {
+            "pathPatterns": "Adjust to match your project structure",
+            "keywords": "Add domain-specific terms relevant to your project",
+            "intentPatterns": "Use regex for flexible user intent matching"
+        },
+        "stack_rules": {
+            "description": "init-project.sh injects stack-specific rules when creating a new project",
+            "supported": ["nextjs", "react", "fastapi", "django"]
+        }
+    }
+}

@@ -1,0 +1,37 @@
+# {{PROJECT_NAME}} 프로젝트
+
+## Stack
+- fe_stack: {{FE_STACK}}
+- be_stack: {{BE_STACK}}
+
+## Stack Guidelines
+- Frontend: ../../pipeline/stacks/{{FE_STACK}}/frontend-guidelines.md
+- Backend: ../../pipeline/stacks/{{BE_STACK}}/backend-guidelines.md
+
+## Project Info
+- GitHub: {{GITHUB_OWNER}}/{{PROJECT_NAME}}
+- Description: {{DESCRIPTION}}
+
+## 디렉토리 구조
+- `frontend/` — FE 프로젝트 ({{FE_STACK}})
+- `backend/` — BE 프로젝트 ({{BE_STACK}})
+- `docs/` — Agent가 생성하는 문서
+  - `docs/errors/` — 에러 문서 (Agent 06)
+  - `docs/qa-logs/` — QA 성공 로그 (Agent 07)
+  - `docs/pipeline-logs/` — 파이프라인 개선 로그
+
+## Notion 통합 (선택적)
+- PIPELINE_LOG Page ID: (루트 CLAUDE.md에서 상속)
+- Pipeline Runs DB ID: (루트 CLAUDE.md에서 상속)
+
+## 파이프라인 실행
+
+이 프로젝트는 루트 CLAUDE.md의 파이프라인을 따릅니다.
+
+```
+Phase 1 · Agent 01 → 문서 작성 (docs/)
+Phase 2 · Agent 02 → GitHub 이슈 생성
+Phase 3 · Agent 03 + 04 → FE/BE 병렬 개발
+Phase 4 · Agent 05 → QA (E2E 테스트)
+Phase 5 · Agent 06/07 → 로그 문서화
+```
