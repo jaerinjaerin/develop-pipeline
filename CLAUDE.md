@@ -116,6 +116,10 @@ Phase 6 · 배포          → Agent 08 (Staging 자동 + Production 승인)
 - 동일 시나리오 3회 연속 실패 시 자동 에스컬레이션
 
 ### Git / PR 규칙
+- 커밋은 반드시 `/commit` 커맨드를 사용하여 컨벤션 준수
+- 커밋 형식: `<type>(<scope>): <한국어 설명>` (Conventional Commits)
+- type: `feat`, `fix`, `docs`, `refactor`, `style`, `test`, `chore`, `ci`
+- scope: `orchestrator`, `agent-01`~`agent-08`, `pipeline`, `skills`, `deploy`, `fe`, `be`, `qa` 등
 - 이슈 1개 = PR 1개 원칙
 - PR 제목에 이슈 번호 포함: `[FE] #12 LoginForm 컴포넌트 구현`
 - Acceptance Criteria 기반으로 PR 체크리스트 생성
