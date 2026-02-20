@@ -6,7 +6,7 @@
 
 ## Pipeline Overview
 
-디자인 산출물(퍼블리싱 HTML, 기획서 등)을 입력받아 **문서화 → 이슈 생성 → FE/BE 개발 → QA → 로그 문서화**까지 자동 수행하는 에이전트 파이프라인.
+디자인 산출물(퍼블리싱 HTML, 기획서 등)을 입력받아 **문서화 → 이슈 생성 → FE/BE 개발 → QA → 로그 문서화 → 배포**까지 자동 수행하는 에이전트 파이프라인.
 
 ### Phase 흐름
 
@@ -17,6 +17,8 @@ Phase 2 · 이슈 생성     → Agent 02 (이슈 생성)
 Phase 3 · 병렬 개발     → Agent 03 (FE) + Agent 04 (BE)
 Phase 4 · 검증          → Agent 05 (QA · E2E)
 Phase 5 · 로그 문서화   → Agent 06 (에러) / Agent 07 (성공)
+Phase 6 · 배포          → Agent 08 (Staging 자동 + Production 승인)
+    ⏸️ Production 배포 승인
 ```
 
 ---
@@ -27,7 +29,7 @@ Phase 5 · 로그 문서화   → Agent 06 (에러) / Agent 07 (성공)
 
 ### 기본 실행 규칙
 
-1. **Phase 순서 준수**: Phase 1 → (사람 검토) → Phase 2 → Phase 3 → Phase 4 → Phase 5
+1. **Phase 순서 준수**: Phase 1 → (사람 검토) → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6 → (Production 승인)
 2. **병렬 처리**: Phase 3에서 FE/BE Agent는 이슈 의존성 기반으로 병렬 실행
 3. **Wave 스케줄링**: `blocked by` 없는 이슈부터 할당, 선행 이슈 완료 시 다음 Wave 자동 시작
 
@@ -35,7 +37,10 @@ Phase 5 · 로그 문서화   → Agent 06 (에러) / Agent 07 (성공)
 
 | 트리거 | 액션 |
 |---|---|
-| QA 전체 통과 | Agent 07 → 성공 로그 문서화 → 배포 준비 완료 |
+| QA 전체 통과 | Agent 07 → Agent 08 Staging 자동 배포 |
+| Staging 배포 성공 | ⏸️ Production 승인 대기 → 승인 시 Production 배포 |
+| 배포 실패 | Agent 08 롤백 실행 → 롤백 성공 시 에러 문서화 |
+| 롤백 3회 실패 | 파이프라인 일시 정지 → 사람에게 에스컬레이션 |
 | QA 실패 (FE) | Agent 06 → Agent 03 재실행 (에러 컨텍스트 전달) |
 | QA 실패 (BE) | Agent 06 → Agent 04 재실행 (에러 컨텍스트 전달) |
 | QA 실패 (FE+BE) | Agent 06 → Agent 03 & 04 동시 재실행 |
@@ -101,6 +106,7 @@ Phase 5 · 로그 문서화   → Agent 06 (에러) / Agent 07 (성공)
 - 모든 Agent가 생성하는 문서는 `docs/` 하위에 저장
 - 에러 문서: `docs/errors/{날짜}_{시나리오}.md`
 - QA 로그: `docs/qa-logs/{날짜}_{페이지}/`
+- 배포 로그: `docs/deploy-logs/{날짜}_{환경}.md`
 - Mermaid 다이어그램은 문서 내 인라인으로 작성
 
 ### QA 규칙
@@ -118,6 +124,7 @@ Phase 5 · 로그 문서화   → Agent 06 (에러) / Agent 07 (성공)
 - Agent 출력물은 `docs/` 폴더를 통해 공유
 - QA 리포트는 구조화된 형식으로 Orchestrator에게 전달
 - 에러 문서에는 반드시 이전 시도 이력 포함
+- Agent 08 배포 로그는 `docs/deploy-logs/`에 저장
 
 ### Notion 통합 규칙
 - PIPELINE_LOG 페이지 ID: `30db717d-4315-8099-b939-e6a70d60d428`
@@ -139,7 +146,7 @@ Phase 5 · 로그 문서화   → Agent 06 (에러) / Agent 07 (성공)
 |-------|---------|
 | `verify-implementation` | 프로젝트의 모든 verify 스킬을 순차 실행하여 통합 검증 보고서를 생성합니다 |
 | `manage-skills` | 세션 변경사항을 분석하고, 검증 스킬을 생성/업데이트하며, CLAUDE.md를 관리합니다 |
-| `notion_logger` | Agent 06/07이 QA 결과를 Notion PIPELINE_LOG에 기록 |
+| `notion_logger` | Agent 06/07/08이 QA 결과 및 배포 결과를 Notion PIPELINE_LOG에 기록 |
 | `visualization-notion` | Notion 기획서 시각화(Agent 01) + QA 결과 시각화(Agent 06/07) + 대시보드 |
 
 ---

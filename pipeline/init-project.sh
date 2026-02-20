@@ -66,20 +66,22 @@ echo "  BE Stack: $BE_STACK"
 echo ""
 
 # --- 1. 디렉토리 구조 생성 ---
-echo "[1/8] Creating directory structure..."
+echo "[1/9] Creating directory structure..."
 mkdir -p "$PROJECT_DIR/.claude/agents"
 mkdir -p "$PROJECT_DIR/.claude/skills"
 mkdir -p "$PROJECT_DIR/.claude/commands"
 mkdir -p "$PROJECT_DIR/.claude/hooks"
 mkdir -p "$PROJECT_DIR/frontend"
 mkdir -p "$PROJECT_DIR/backend"
+mkdir -p "$PROJECT_DIR/deploy"
 mkdir -p "$PROJECT_DIR/docs/errors"
 mkdir -p "$PROJECT_DIR/docs/qa-logs"
+mkdir -p "$PROJECT_DIR/docs/deploy-logs"
 mkdir -p "$PROJECT_DIR/docs/pipeline-logs"
 mkdir -p "$PROJECT_DIR/dev/active"
 
 # --- 2. 에이전트 symlink 연결 (pipeline/agents/ 단일 소스) ---
-echo "[2/8] Linking agents..."
+echo "[2/9] Linking agents..."
 AGENTS_SOURCE="$PIPELINE_DIR/agents"
 AGENTS_TARGET="$PROJECT_DIR/.claude/agents"
 
@@ -91,7 +93,7 @@ for agent_file in "$AGENTS_SOURCE"/*.md; do
 done
 
 # --- 3. 스킬 symlink 연결 (pipeline/skills/ 단일 소스) ---
-echo "[3/8] Linking skills..."
+echo "[3/9] Linking skills..."
 SKILLS_SOURCE="$PIPELINE_DIR/skills"
 SKILLS_TARGET="$PROJECT_DIR/.claude/skills"
 
@@ -120,7 +122,7 @@ cp "$SKILLS_SOURCE/skill-rules.json" "$SKILLS_TARGET/skill-rules.json"
 echo "  → skill-rules.json (copied)"
 
 # --- 4. 스택 스킬 룰 주입 ---
-echo "[4/8] Injecting stack-specific skill rules..."
+echo "[4/9] Injecting stack-specific skill rules..."
 
 # FE 스택 룰 주입
 inject_fe_rule() {
@@ -248,7 +250,7 @@ inject_fe_rule "$FE_STACK" "$SKILLS_TARGET/skill-rules.json"
 inject_be_rule "$BE_STACK" "$SKILLS_TARGET/skill-rules.json"
 
 # --- 5. Hooks 복사 및 설치 (pipeline/hooks/ 단일 소스) ---
-echo "[5/8] Setting up hooks..."
+echo "[5/9] Setting up hooks..."
 HOOKS_SOURCE="$PIPELINE_DIR/hooks"
 HOOKS_TARGET="$PROJECT_DIR/.claude/hooks"
 
@@ -272,7 +274,7 @@ echo "  Installing hook dependencies..."
 echo "  → Hooks installed"
 
 # --- 6. Commands symlink 연결 (pipeline/commands/ 단일 소스) ---
-echo "[6/8] Linking commands..."
+echo "[6/9] Linking commands..."
 COMMANDS_SOURCE="$PIPELINE_DIR/commands"
 COMMANDS_TARGET="$PROJECT_DIR/.claude/commands"
 
@@ -286,7 +288,7 @@ for cmd_file in "$COMMANDS_SOURCE"/*.md; do
 done
 
 # --- 7. settings.json 생성 ---
-echo "[7/8] Creating project settings.json..."
+echo "[7/9] Creating project settings.json..."
 cat > "$PROJECT_DIR/.claude/settings.json" << 'SETTINGS_EOF'
 {
   "enableAllProjectMcpServers": true,
@@ -328,7 +330,7 @@ SETTINGS_EOF
 echo "  → settings.json"
 
 # --- 8. 프로젝트 CLAUDE.md 생성 ---
-echo "[8/8] Generating project CLAUDE.md..."
+echo "[8/9] Generating project CLAUDE.md..."
 TEMPLATE="$PIPELINE_DIR/templates/CLAUDE.md.template"
 
 sed -e "s|{{PROJECT_NAME}}|$PROJECT_NAME|g" \
@@ -337,6 +339,135 @@ sed -e "s|{{PROJECT_NAME}}|$PROJECT_NAME|g" \
     -e "s|{{GITHUB_OWNER}}|owner|g" \
     -e "s|{{DESCRIPTION}}|$PROJECT_NAME 프로젝트|g" \
     "$TEMPLATE" > "$PROJECT_DIR/CLAUDE.md"
+
+# --- 9. Deploy 설정 파일 생성 ---
+echo "[9/9] Creating deploy configuration..."
+
+cat > "$PROJECT_DIR/deploy/Dockerfile.frontend" << 'DEPLOY_FE_EOF'
+# Frontend Dockerfile
+# 프로젝트 FE 스택에 맞게 수정하세요
+
+# --- Build stage ---
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# --- Production stage ---
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=builder /app/package*.json ./
+RUN npm ci --only=production
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+
+EXPOSE 3000
+CMD ["npm", "start"]
+DEPLOY_FE_EOF
+
+cat > "$PROJECT_DIR/deploy/Dockerfile.backend" << 'DEPLOY_BE_EOF'
+# Backend Dockerfile
+# 프로젝트 BE 스택에 맞게 수정하세요
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+DEPLOY_BE_EOF
+
+cat > "$PROJECT_DIR/deploy/docker-compose.yml" << DEPLOY_COMPOSE_EOF
+version: "3.8"
+
+services:
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../deploy/Dockerfile.frontend
+    image: ${PROJECT_NAME}-frontend:\${TAG:-latest}
+    ports:
+      - "\${FE_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=\${NODE_ENV:-production}
+      - NEXT_PUBLIC_API_URL=\${API_URL:-http://backend:8000}
+    depends_on:
+      - backend
+    profiles:
+      - staging
+      - production
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../deploy/Dockerfile.backend
+    image: ${PROJECT_NAME}-backend:\${TAG:-latest}
+    ports:
+      - "\${BE_PORT:-8000}:8000"
+    environment:
+      - DATABASE_URL=\${DATABASE_URL:-sqlite:///./app.db}
+      - ENVIRONMENT=\${ENVIRONMENT:-production}
+    profiles:
+      - staging
+      - production
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=\${POSTGRES_DB:-app}
+      - POSTGRES_USER=\${POSTGRES_USER:-app}
+      - POSTGRES_PASSWORD=\${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    profiles:
+      - staging
+      - production
+
+volumes:
+  db_data:
+DEPLOY_COMPOSE_EOF
+
+cat > "$PROJECT_DIR/deploy/deploy-config.yml" << 'DEPLOY_CONFIG_EOF'
+# 배포 설정 — Agent 08이 참조합니다
+# provider를 변경하여 배포 대상을 확장할 수 있습니다
+
+provider: docker  # docker | vercel | aws-ecs | gcp-run
+
+staging:
+  url: http://localhost:3000
+  api_url: http://localhost:8000
+  health_check:
+    frontend: /
+    backend: /health
+  timeout: 30  # Health Check 타임아웃 (초)
+
+production:
+  url: https://example.com
+  api_url: https://api.example.com
+  health_check:
+    frontend: /
+    backend: /health
+  timeout: 60
+  requires_approval: true  # Production은 반드시 사람 승인 필요
+
+rollback:
+  max_retries: 3  # 롤백 최대 시도 횟수
+  escalate_after: 3  # 이 횟수 이후 사람에게 에스컬레이션
+DEPLOY_CONFIG_EOF
+
+echo "  → Dockerfile.frontend"
+echo "  → Dockerfile.backend"
+echo "  → docker-compose.yml"
+echo "  → deploy-config.yml"
 
 # --- 완료 ---
 echo ""
@@ -352,7 +483,8 @@ echo ""
 echo "  Included infrastructure:"
 echo "    Hooks:    skill-activation, post-tool-use-tracker, tsc-check, error-handling-reminder"
 echo "    Agents:   planner, auto-error-resolver, code-architecture-reviewer, frontend-error-fixer"
-echo "    Agents:   + pipeline agents (01~07)"
+echo "    Agents:   + pipeline agents (01~08)"
+echo "    Deploy:   Dockerfile.frontend, Dockerfile.backend, docker-compose.yml, deploy-config.yml"
 echo "    Commands: /dev-docs, /dev-docs-update, /pipeline-dashboard"
 echo "    Skills:   skill-developer, verify-implementation, manage-skills, visualization-notion"
 echo "    Rules:    skill-rules.json (with $FE_STACK + $BE_STACK rules injected)"

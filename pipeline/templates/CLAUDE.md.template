@@ -15,9 +15,11 @@
 ## 디렉토리 구조
 - `frontend/` — FE 프로젝트 ({{FE_STACK}})
 - `backend/` — BE 프로젝트 ({{BE_STACK}})
+- `deploy/` — 배포 설정 (Agent 08)
 - `docs/` — Agent가 생성하는 문서
   - `docs/errors/` — 에러 문서 (Agent 06)
   - `docs/qa-logs/` — QA 성공 로그 (Agent 07)
+  - `docs/deploy-logs/` — 배포 로그 (Agent 08)
   - `docs/pipeline-logs/` — 파이프라인 개선 로그
 
 ## Notion 통합 (선택적)
@@ -34,4 +36,5 @@ Phase 2 · Agent 02 → GitHub 이슈 생성
 Phase 3 · Agent 03 + 04 → FE/BE 병렬 개발
 Phase 4 · Agent 05 → QA (E2E 테스트)
 Phase 5 · Agent 06/07 → 로그 문서화
+Phase 6 · Agent 08 → 배포 (Staging 자동 + Production 승인)
 ```

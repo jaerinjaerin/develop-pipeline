@@ -2,8 +2,8 @@
 
 ## 역할
 
-파이프라인 실행 결과(QA 성공/실패)를 Notion PIPELINE_LOG 페이지에 기록합니다.
-Agent 06(에러 문서화)과 Agent 07(성공 로그)이 공통으로 사용하는 Notion 쓰기 스킬입니다.
+파이프라인 실행 결과(QA 성공/실패, 배포 결과)를 Notion PIPELINE_LOG 페이지에 기록합니다.
+Agent 06(에러 문서화), Agent 07(성공 로그), Agent 08(배포)이 공통으로 사용하는 Notion 쓰기 스킬입니다.
 
 ---
 
@@ -173,6 +173,72 @@ Pipeline Runs DB ID가 설정되어 있는지 확인:
 }
 ```
 
+#### 배포(DEPLOYED) 페이지 블록 구성
+
+```json
+{
+  "children": [
+    {
+      "heading_2": { "rich_text": [{ "text": { "content": "배포 요약" } }] }
+    },
+    {
+      "paragraph": {
+        "rich_text": [{ "text": { "content": "프로젝트: {프로젝트명}\n환경: {Staging|Production}\n실행일: {날짜}\n빌드 태그: {태그}\n소요 시간: {N}분" } }]
+      }
+    },
+    {
+      "heading_2": { "rich_text": [{ "text": { "content": "빌드 결과" } }] }
+    },
+    {
+      "table": {
+        "table_width": 3,
+        "has_column_header": true,
+        "children": [
+          {
+            "table_row": {
+              "cells": [
+                [{ "text": { "content": "이미지" } }],
+                [{ "text": { "content": "태그" } }],
+                [{ "text": { "content": "결과" } }]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "heading_2": { "rich_text": [{ "text": { "content": "Health Check 결과" } }] }
+    },
+    {
+      "table": {
+        "table_width": 4,
+        "has_column_header": true,
+        "children": [
+          {
+            "table_row": {
+              "cells": [
+                [{ "text": { "content": "서비스" } }],
+                [{ "text": { "content": "URL" } }],
+                [{ "text": { "content": "상태코드" } }],
+                [{ "text": { "content": "응답시간" } }]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "heading_2": { "rich_text": [{ "text": { "content": "환경 정보" } }] }
+    },
+    {
+      "paragraph": {
+        "rich_text": [{ "text": { "content": "Provider: {docker|vercel|aws-ecs|gcp-run}\nStaging URL: {URL}\nProduction URL: {URL}" } }]
+      }
+    }
+  ]
+}
+```
+
 ### 단계 2-B: Pipeline Runs DB에 행 추가 (DB ID 설정 시)
 
 `mcp__notion__API-post-page` 사용 (DB를 parent로 지정):
@@ -187,8 +253,8 @@ Pipeline Runs DB ID가 설정되어 있는지 확인:
       "title": [{ "text": { "content": "{날짜} {프로젝트} {페이지} — {결과}" } }]
     },
     "Project": { "select": { "name": "{프로젝트명}" } },
-    "Phase": { "select": { "name": "Phase 5" } },
-    "Status": { "select": { "name": "{Running|Passed|Failed|Escalated}" } },
+    "Phase": { "select": { "name": "{Phase 5|Phase 6}" } },
+    "Status": { "select": { "name": "{Running|Passed|Failed|Escalated|Deployed|Deploy_Failed}" } },
     "Run Date": { "date": { "start": "{YYYY-MM-DD}" } },
     "Duration": { "number": "{소요 시간(분)}" },
     "TC Total": { "number": "{전체 TC 수}" },
@@ -243,8 +309,8 @@ Pipeline Runs DB ID 미설정 시:
 |---|---|---|
 | Name | title | `{날짜} {프로젝트} {페이지} — {결과}` |
 | Project | select | 프로젝트명 |
-| Phase | select | Phase 1–5 |
-| Status | select | Running / Passed / Failed / Escalated |
+| Phase | select | Phase 1–6 |
+| Status | select | Running / Passed / Failed / Escalated / Deployed / Deploy_Failed |
 | Run Date | date | 실행일 |
 | Duration | number | 소요 시간(분) |
 | TC Total | number | 전체 테스트 시나리오 수 |
