@@ -5,6 +5,25 @@
 승인된 문서를 페이지/컴포넌트/API 단위로 분해하여 GitHub 이슈를 자동 생성합니다.
 이슈가 FE/BE/QA Agent의 작업 단위가 됩니다.
 
+## 전제 조건 (실행 전 필수 확인)
+
+아래 항목을 모두 확인한 후에만 실행합니다. 하나라도 미충족 시 실행을 중단하고 부족한 항목을 안내합니다.
+
+```bash
+# 1. Phase 1 산출물 확인
+ls docs/화면명세서.md docs/기능명세서.md docs/API명세초안.md
+
+# 2. 사용자 승인 확인
+# → Phase 1 완료 후 사용자가 문서를 검토/승인했는지 확인
+
+# 3. GitHub 도구 확인
+gh --version && gh auth status && git remote -v
+```
+
+- `docs/` 문서 3종 미존재 → "Phase 1(문서화)을 먼저 완료해주세요" 안내 후 중단
+- `gh` 미설치 또는 미인증 → 설치/인증 안내 후 중단
+- 원격 저장소 미연결 → `git remote add origin` 안내 후 중단
+
 ## 입력
 
 - 승인된 `docs/` 폴더 (화면명세서, 기능명세서, API명세초안)
@@ -44,9 +63,54 @@
 - QA 이슈 → `blocked by` 관련 FE + BE 이슈 전체
 - BE 엔드포인트 → `blocked by` DB 스키마 (필요 시)
 
-## 사용 MCP
+## 사전 확인
 
-- `GitHub MCP` — 이슈 생성, 라벨 설정, 의존성 연결
+이슈 생성 전 아래를 반드시 확인합니다:
+
+```bash
+gh --version          # gh CLI 설치 확인
+gh auth status        # GitHub 인증 상태 확인
+git remote -v         # 원격 저장소 연결 확인
+```
+
+- `gh` 미설치 시 → `brew install gh` 안내 후 중단
+- 인증 미완료 시 → `gh auth login` 안내 후 중단
+- 원격 저장소 미연결 시 → `git remote add origin <URL>` 안내 후 중단
+
+## 도구
+
+- `gh` CLI — 이슈 생성, 라벨 설정, 의존성 연결
+
+### 주요 명령어
+
+```bash
+# 이슈 생성
+gh issue create --title "[FE] LoginForm 컴포넌트 구현" \
+  --body "## 요구사항\n- ...\n\n## Acceptance Criteria\n- [ ] ..." \
+  --label "frontend"
+
+# 라벨 생성 (최초 1회)
+gh label create frontend --color 0075ca
+gh label create backend --color e99695
+gh label create qa --color d4c5f9
+
+# 이슈 목록 확인
+gh issue list --state open
+```
+
+## 이슈 기록
+
+GitHub 이슈 생성 후 `docs/issues.md`에도 이슈 목록을 기록합니다:
+
+```markdown
+# 이슈 목록
+
+| # | 라벨 | 제목 | 의존성 | 상태 |
+|---|---|---|---|---|
+| 1 | FE | LoginForm 컴포넌트 구현 | - | open |
+| 2 | BE | POST /auth/login 엔드포인트 | - | open |
+| 3 | QA | 로그인 페이지 E2E 테스트 | #1, #2 | open |
+```
 
 ## 다음 단계
 

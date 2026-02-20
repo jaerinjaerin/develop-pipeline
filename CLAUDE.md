@@ -33,6 +33,27 @@ Phase 6 · 배포          → Agent 08 (Staging 자동 + Production 승인)
 2. **병렬 처리**: Phase 3에서 FE/BE Agent는 이슈 의존성 기반으로 병렬 실행
 3. **Wave 스케줄링**: `blocked by` 없는 이슈부터 할당, 선행 이슈 완료 시 다음 Wave 자동 시작
 
+### Phase Gate 규칙 (필수)
+
+각 Phase 진입 전 반드시 전제 조건을 확인해야 합니다. 전제 조건 미충족 시 해당 Phase 진입을 차단합니다.
+
+| Phase | 전제 조건 | 확인 방법 |
+|---|---|---|
+| Phase 1 | 입력 자료 존재 | 사용자 제공 파일 확인 |
+| Phase 2 | `docs/` 문서 3종 (화면명세서, 기능명세서, API명세초안) + 사용자 승인 | `ls docs/*.md` + 승인 확인 |
+| Phase 3 | GitHub 이슈 1개 이상 생성 | `gh issue list --state open` |
+| Phase 4 | FE/BE 코드 커밋 + PR 존재 | `git log --oneline -10` + `gh pr list` |
+| Phase 5 | QA 리포트 존재 | `ls docs/qa-logs/` |
+| Phase 6 | 성공 로그 존재 | `ls docs/qa-logs/*/summary.md` |
+
+**Phase Gate 실행 프로토콜:**
+
+1. **아티팩트 확인**: 이전 Phase의 산출물이 파일시스템에 존재하는지 확인
+2. **도구 확인**: 해당 Phase에서 필요한 도구(`gh`, `docker` 등)가 사용 가능한지 확인
+3. **전제 조건 미충족 시**: 부족한 항목을 명시하고 해당 Phase 진입 차단
+4. **에스컬레이션**: 자동 해결 불가능한 전제 조건 → 사람에게 에스컬레이션
+5. **게이트 통과 기록**: Phase 진입 시 `docs/pipeline-logs/`에 게이트 통과 기록
+
 ### 재진입 / 에스컬레이션 로직
 
 | 트리거 | 액션 |
@@ -69,6 +90,19 @@ Phase 6 · 배포          → Agent 08 (Staging 자동 + Production 승인)
 ./pipeline/init-project.sh shopping-mall nextjs fastapi
 ./pipeline/init-project.sh blog-site react django
 ```
+
+### 환경 요구사항
+
+`init-project.sh` 실행 전 아래 도구가 설치되어 있어야 합니다.
+
+| 구분 | 도구 | 용도 | 미설치 시 |
+|---|---|---|---|
+| **필수** | `python3` | macOS realpath 대체 (relpath 함수) | 즉시 중단 |
+| **필수** | `jq` | skill-rules.json 스택 룰 주입 | 즉시 중단 |
+| **필수** | `node` | Hook 의존성 설치, FE 빌드 | 즉시 중단 |
+| **필수** | `npm` | Hook 의존성 설치, FE 패키지 관리 | 즉시 중단 |
+| 권장 | `gh` | GitHub 이슈/PR 생성 (Phase 2, 3) | 경고 후 계속 |
+| 권장 | `docker` | 배포 (Phase 6) | 경고 후 계속 |
 
 ### 지원 스택
 
@@ -123,6 +157,17 @@ Phase 6 · 배포          → Agent 08 (Staging 자동 + Production 승인)
 - 이슈 1개 = PR 1개 원칙
 - PR 제목에 이슈 번호 포함: `[FE] #12 LoginForm 컴포넌트 구현`
 - Acceptance Criteria 기반으로 PR 체크리스트 생성
+- **Agent 03, 04는 코드 작성 후 반드시 `/commit` 실행** (커밋 없이 다음 이슈로 넘어가는 것은 금지)
+- **이슈별 전용 브랜치 생성 필수**: `feat/fe-{이슈번호}-{설명}` 또는 `feat/be-{이슈번호}-{설명}`
+- **브랜치 → 커밋 → PR → 이슈 close** 순서 필수 준수
+
+### GitHub CLI 규칙
+- GitHub 작업은 반드시 `gh` CLI를 사용 (GitHub MCP 사용 금지)
+- Agent 실행 전 `gh auth status`로 인증 상태 확인
+- 이슈 생성: `gh issue create --title "<title>" --body "<body>" --label "<label>"`
+- PR 생성: `gh pr create --title "<title>" --body "<body>"`
+- 이슈 닫기: `gh issue close <number>`
+- 이슈 목록은 `docs/issues.md`에도 기록 (오프라인 참조용)
 
 ### Agent 간 통신
 - Agent 출력물은 `docs/` 폴더를 통해 공유

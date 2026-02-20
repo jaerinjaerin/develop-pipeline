@@ -55,6 +55,9 @@ npm-debug.log*
 pipeline/hooks/node_modules/
 pipeline/hooks/dist/
 
+# Claude Code TSC cache
+tsc-cache/
+
 # Database
 *.db
 *.sqlite3

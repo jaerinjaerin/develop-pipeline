@@ -21,6 +21,54 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PIPELINE_DIR="$ROOT_DIR/pipeline"
 PROJECTS_DIR="$ROOT_DIR/projects"
 
+# --- 환경 의존성 검증 ---
+check_prerequisites() {
+    local missing_required=()
+    local missing_optional=()
+
+    # 필수 도구 확인
+    for cmd in python3 jq node npm; do
+        if ! command -v "$cmd" &>/dev/null; then
+            missing_required+=("$cmd")
+        fi
+    done
+
+    if [ ${#missing_required[@]} -gt 0 ]; then
+        echo "❌ 필수 도구가 설치되어 있지 않습니다:"
+        for cmd in "${missing_required[@]}"; do
+            case "$cmd" in
+                python3) echo "  - python3: brew install python3 또는 https://www.python.org/" ;;
+                jq)      echo "  - jq: brew install jq 또는 https://jqlang.github.io/jq/" ;;
+                node)    echo "  - node: brew install node 또는 https://nodejs.org/" ;;
+                npm)     echo "  - npm: node 설치 시 함께 설치됨" ;;
+            esac
+        done
+        echo ""
+        echo "필수 도구를 모두 설치한 후 다시 실행해주세요."
+        exit 1
+    fi
+
+    # 권장 도구 확인
+    for cmd in gh docker; do
+        if ! command -v "$cmd" &>/dev/null; then
+            missing_optional+=("$cmd")
+        fi
+    done
+
+    if [ ${#missing_optional[@]} -gt 0 ]; then
+        echo "⚠️  권장 도구가 설치되어 있지 않습니다 (계속 진행 가능):"
+        for cmd in "${missing_optional[@]}"; do
+            case "$cmd" in
+                gh)     echo "  - gh: brew install gh 또는 https://cli.github.com/ (GitHub 이슈/PR 생성에 필요)" ;;
+                docker) echo "  - docker: https://www.docker.com/ (배포에 필요)" ;;
+            esac
+        done
+        echo ""
+    fi
+}
+
+check_prerequisites
+
 # macOS 호환: realpath --relative-to 대체 함수
 relpath() {
     python3 -c "import os.path; print(os.path.relpath('$1', '$2'))"
@@ -251,8 +299,13 @@ inject_be_rule() {
     esac
 }
 
-inject_fe_rule "$FE_STACK" "$SKILLS_TARGET/skill-rules.json"
-inject_be_rule "$BE_STACK" "$SKILLS_TARGET/skill-rules.json"
+if command -v jq &>/dev/null; then
+    inject_fe_rule "$FE_STACK" "$SKILLS_TARGET/skill-rules.json"
+    inject_be_rule "$BE_STACK" "$SKILLS_TARGET/skill-rules.json"
+else
+    echo "  ⚠️  jq가 설치되어 있지 않아 스택 스킬 룰 주입을 건너뜁니다."
+    echo "     설치 후 수동으로 실행하세요: brew install jq"
+fi
 
 # --- 5. Hooks 복사 및 설치 (pipeline/hooks/ 단일 소스) ---
 echo "[5/9] Setting up hooks..."
@@ -274,7 +327,14 @@ chmod +x "$HOOKS_TARGET"/*.sh
 
 # npm 의존성 설치
 echo "  Installing hook dependencies..."
-(cd "$HOOKS_TARGET" && npm install --silent 2>/dev/null) || echo "  ⚠️  npm install failed - run manually: cd $HOOKS_TARGET && npm install"
+if command -v npm &>/dev/null; then
+    if ! (cd "$HOOKS_TARGET" && npm install --silent 2>/dev/null); then
+        echo "  ⚠️  npm install 실패 — 수동으로 실행해주세요:"
+        echo "     cd $HOOKS_TARGET && npm install"
+    fi
+else
+    echo "  ⚠️  npm이 설치되어 있지 않아 hook 의존성 설치를 건너뜁니다."
+fi
 
 echo "  → Hooks installed"
 
