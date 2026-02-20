@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VISIT GANGNAM - B안 시네마틱 몰입형</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800;900&family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --primary: #C12A59;
+  --primary-dark: #1B1F3B;
+  --secondary: #00C9A7;
+  --bg: #FFFFFF;
+  --surface: #F5F5F7;
+  --text: #222222;
+  --text-sub: #666666;
+  --radius: 14px;
+}
+
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  color: var(--text); background: #000;
+  overflow-x: hidden; line-height: 1.6;
+}
+
+/* ===== HEADER ===== */
+.header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  padding: 0 48px; height: 80px;
+  display: flex; align-items: center; justify-content: space-between;
+  transition: all 0.4s;
+}
+.header.scrolled {
+  background: rgba(0,0,0,0.85); backdrop-filter: blur(20px);
+}
+.logo {
+  font-family: 'Montserrat'; font-weight: 900; font-size: 20px;
+  color: #fff; text-decoration: none; letter-spacing: 2px;
+}
+.nav { display: flex; gap: 36px; list-style: none; }
+.nav a {
+  font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.75);
+  text-decoration: none; letter-spacing: 0.5px;
+  transition: color 0.3s;
+}
+.nav a:hover { color: #fff; }
+.header-actions { display: flex; align-items: center; gap: 20px; }
+.lang-btn {
+  font-family: 'Montserrat'; font-size: 12px; font-weight: 700;
+  color: #fff; background: transparent;
+  border: 1px solid rgba(255,255,255,0.3); padding: 8px 18px;
+  border-radius: 30px; cursor: pointer; letter-spacing: 1px;
+  transition: all 0.3s;
+}
+.lang-btn:hover { background: var(--primary); border-color: var(--primary); }
+
+/* ===== HERO ===== */
+.hero {
+  position: relative; height: 100vh; min-height: 800px;
+  display: flex; align-items: flex-end;
+  padding: 0 0 100px 80px;
+  overflow: hidden;
+}
+.hero-bg {
+  position: absolute; inset: 0;
+  background: url('https://images.unsplash.com/photo-1517154421773-0529f569f283?w=1920&q=80') center/cover;
+}
+.hero-bg::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.6) 70%, rgba(0,0,0,0.9) 100%);
+}
+.hero-content { position: relative; z-index: 2; max-width: 700px; }
+.hero-eyebrow {
+  font-family: 'Montserrat'; font-size: 14px; font-weight: 700;
+  color: var(--secondary); letter-spacing: 4px;
+  text-transform: uppercase; margin-bottom: 20px;
+}
+.hero-title {
+  font-family: 'Montserrat'; font-size: 80px; font-weight: 900;
+  color: #fff; line-height: 0.95; margin-bottom: 24px;
+  letter-spacing: -3px;
+}
+.hero-title em {
+  font-style: normal;
+  background: linear-gradient(135deg, var(--primary), #E84580);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.hero-desc {
+  font-size: 18px; color: rgba(255,255,255,0.7);
+  font-weight: 300; line-height: 1.7; margin-bottom: 40px;
+  max-width: 500px;
+}
+.hero-btns { display: flex; gap: 16px; }
+.btn-primary {
+  padding: 18px 40px; background: var(--primary); color: #fff;
+  border: none; border-radius: 50px; font-size: 16px; font-weight: 700;
+  cursor: pointer; text-decoration: none; transition: all 0.3s;
+  font-family: inherit;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(193,42,89,0.4);
+}
+.btn-outline {
+  padding: 18px 40px; background: transparent;
+  border: 2px solid rgba(255,255,255,0.3); color: #fff;
+  border-radius: 50px; font-size: 16px; font-weight: 600;
+  cursor: pointer; text-decoration: none; transition: all 0.3s;
+  font-family: inherit;
+}
+.btn-outline:hover { border-color: #fff; background: rgba(255,255,255,0.1); }
+.hero-side {
+  position: absolute; right: 80px; bottom: 100px; z-index: 2;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.hero-stat {
+  background: rgba(255,255,255,0.08); backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 20px 28px; border-radius: var(--radius);
+  text-align: center; min-width: 160px;
+}
+.hero-stat-num {
+  font-family: 'Montserrat'; font-size: 32px; font-weight: 800;
+  color: var(--secondary);
+}
+.hero-stat-label { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+
+/* ===== SECTION ===== */
+.sec { padding: 120px 80px; }
+.sec-white { background: #fff; }
+.sec-surface { background: var(--surface); }
+.sec-dark { background: var(--primary-dark); }
+.sec-black { background: #000; }
+.sec-header { margin-bottom: 64px; }
+.sec-label {
+  font-family: 'Montserrat'; font-size: 13px; font-weight: 700;
+  color: var(--secondary); letter-spacing: 3px;
+  text-transform: uppercase; margin-bottom: 16px;
+}
+.sec-title {
+  font-size: 48px; font-weight: 800; line-height: 1.15;
+  margin-bottom: 16px;
+}
+.sec-title .hl { color: var(--primary); }
+.sec-desc { font-size: 17px; color: var(--text-sub); max-width: 500px; line-height: 1.7; }
+
+/* ===== S2: 지금 강남은 — 시네마틱 분할 ===== */
+.now-section {
+  display: grid; grid-template-columns: 1fr 1fr;
+  min-height: 80vh;
+}
+.now-visual {
+  position: relative; overflow: hidden;
+}
+.now-visual img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.now-content {
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 80px;
+}
+.now-time-tabs {
+  display: flex; gap: 0; margin-bottom: 40px;
+  border-bottom: 2px solid #eee;
+}
+.now-time-tab {
+  padding: 16px 32px; border: none; background: transparent;
+  font-size: 16px; font-weight: 600; cursor: pointer;
+  color: var(--text-sub); position: relative;
+  font-family: inherit; transition: color 0.3s;
+}
+.now-time-tab.active { color: var(--primary); }
+.now-time-tab.active::after {
+  content: ''; position: absolute; bottom: -2px; left: 0; right: 0;
+  height: 2px; background: var(--primary);
+}
+.now-list { display: flex; flex-direction: column; gap: 20px; }
+.now-item {
+  display: flex; gap: 20px; padding: 20px;
+  border-radius: var(--radius); cursor: pointer;
+  transition: background 0.3s;
+}
+.now-item:hover { background: var(--surface); }
+.now-item-img {
+  width: 80px; height: 80px; border-radius: 12px;
+  overflow: hidden; flex-shrink: 0;
+}
+.now-item-img img { width: 100%; height: 100%; object-fit: cover; }
+.now-item-tag {
+  display: inline-block; padding: 3px 10px;
+  background: rgba(0,201,167,0.12); color: var(--secondary);
+  border-radius: 20px; font-size: 11px; font-weight: 700;
+  margin-bottom: 6px;
+}
+.now-item-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.now-item-desc { font-size: 13px; color: var(--text-sub); }
+
+/* ===== S3: 핫플레이스 — 풀와이드 카드 ===== */
+.hot-strip {
+  display: flex; gap: 0; width: 100%; overflow: hidden;
+}
+.hot-panel {
+  flex: 1; position: relative; min-height: 600px;
+  overflow: hidden; cursor: pointer;
+  transition: flex 0.6s ease;
+}
+.hot-panel:hover { flex: 2; }
+.hot-panel img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; transition: transform 0.6s;
+}
+.hot-panel:hover img { transform: scale(1.05); }
+.hot-panel-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(transparent 40%, rgba(0,0,0,0.8));
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 40px;
+}
+.hot-panel-cat {
+  font-size: 12px; font-weight: 700; color: var(--secondary);
+  letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;
+}
+.hot-panel-title { font-size: 24px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+.hot-panel-sub { font-size: 14px; color: rgba(255,255,255,0.6); }
+.hot-panel-num {
+  position: absolute; top: 32px; left: 40px;
+  font-family: 'Montserrat'; font-size: 64px; font-weight: 900;
+  color: rgba(255,255,255,0.1);
+}
+
+/* ===== S4: 테마여행 — 대형 카드 ===== */
+.theme-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 32px;
+}
+.theme-card {
+  position: relative; border-radius: 20px; overflow: hidden;
+  height: 400px; cursor: pointer;
+}
+.theme-card img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 0.6s;
+}
+.theme-card:hover img { transform: scale(1.06); }
+.theme-card-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(transparent 30%, rgba(27,31,59,0.85));
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 40px;
+}
+.theme-card-num {
+  font-family: 'Montserrat'; font-size: 14px; font-weight: 700;
+  color: var(--secondary); margin-bottom: 12px;
+  letter-spacing: 2px;
+}
+.theme-card-title { font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+.theme-card-info { font-size: 14px; color: rgba(255,255,255,0.6); }
+.theme-card-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 20px; padding: 12px 24px;
+  background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 50px; color: #fff; font-size: 14px; font-weight: 600;
+  text-decoration: none; transition: all 0.3s;
+}
+.theme-card-btn:hover { background: var(--primary); border-color: var(--primary); }
+
+/* ===== S5: 인플루언서 — 매거진 스타일 ===== */
+.influ-feature {
+  display: grid; grid-template-columns: 1.2fr 1fr; gap: 48px;
+  align-items: center; margin-bottom: 64px;
+}
+.influ-feature:nth-child(even) { direction: rtl; }
+.influ-feature:nth-child(even) > * { direction: ltr; }
+.influ-feature-img {
+  border-radius: 20px; overflow: hidden; height: 500px;
+}
+.influ-feature-img img { width: 100%; height: 100%; object-fit: cover; }
+.influ-feature-body { padding: 20px; }
+.influ-profile {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 24px;
+}
+.influ-avatar {
+  width: 56px; height: 56px; border-radius: 50%;
+  object-fit: cover; border: 3px solid var(--secondary);
+}
+.influ-name { font-size: 18px; font-weight: 700; }
+.influ-handle { font-size: 13px; color: var(--text-sub); }
+.influ-quote {
+  font-size: 28px; font-weight: 700; line-height: 1.4;
+  margin-bottom: 20px; color: var(--text);
+}
+.influ-quote span { color: var(--primary); }
+.influ-desc { font-size: 15px; color: var(--text-sub); line-height: 1.7; margin-bottom: 24px; }
+.influ-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+.influ-tag {
+  padding: 6px 16px; border-radius: 30px; font-size: 13px; font-weight: 600;
+  background: rgba(0,201,167,0.1); color: var(--secondary);
+}
+
+/* ===== S6: 축제/행사 — 다크 풀와이드 ===== */
+.fest-hero {
+  position: relative; min-height: 60vh;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.fest-hero-bg {
+  position: absolute; inset: 0;
+  background: url('https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1920&q=80') center/cover;
+}
+.fest-hero-bg::after {
+  content: ''; position: absolute; inset: 0;
+  background: rgba(27,31,59,0.75);
+}
+.fest-hero-content {
+  position: relative; z-index: 2; text-align: center;
+  max-width: 700px; padding: 0 40px;
+}
+.fest-hero-badge {
+  display: inline-block; padding: 8px 24px;
+  background: var(--primary); color: #fff;
+  border-radius: 30px; font-size: 14px; font-weight: 700;
+  margin-bottom: 24px; letter-spacing: 1px;
+}
+.fest-hero-title {
+  font-family: 'Montserrat'; font-size: 56px; font-weight: 900;
+  color: #fff; margin-bottom: 16px; line-height: 1.1;
+}
+.fest-hero-date {
+  font-size: 18px; color: rgba(255,255,255,0.7); margin-bottom: 32px;
+}
+.fest-cards {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 24px; max-width: 1200px; margin: 0 auto;
+  padding: 80px;
+}
+.fest-card {
+  background: rgba(255,255,255,0.04); backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius); overflow: hidden;
+  transition: transform 0.3s, border-color 0.3s;
+}
+.fest-card:hover {
+  transform: translateY(-8px);
+  border-color: var(--secondary);
+}
+.fest-card-img { height: 200px; overflow: hidden; }
+.fest-card-img img { width: 100%; height: 100%; object-fit: cover; }
+.fest-card-body { padding: 24px; }
+.fest-badge {
+  display: inline-block; padding: 4px 12px;
+  border-radius: 20px; font-size: 12px; font-weight: 700;
+  margin-bottom: 10px;
+}
+.fest-badge.live { background: var(--primary); color: #fff; }
+.fest-badge.soon { background: var(--secondary); color: #fff; }
+.fest-card-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+.fest-card-date { font-size: 13px; color: rgba(255,255,255,0.5); }
+
+/* ===== S7: 강남을 보다 — 시네마틱 갤러리 ===== */
+.gallery {
+  display: grid; grid-template-columns: repeat(12, 1fr);
+  grid-auto-rows: 200px; gap: 12px;
+  max-width: 1400px; margin: 0 auto;
+}
+.gal-item {
+  border-radius: 12px; overflow: hidden;
+  position: relative; cursor: pointer;
+}
+.gal-item img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 0.6s;
+}
+.gal-item:hover img { transform: scale(1.08); }
+.gal-1 { grid-column: span 5; grid-row: span 2; }
+.gal-2 { grid-column: span 4; grid-row: span 1; }
+.gal-3 { grid-column: span 3; grid-row: span 1; }
+.gal-4 { grid-column: span 3; grid-row: span 1; }
+.gal-5 { grid-column: span 4; grid-row: span 1; }
+.gal-play {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 64px; height: 64px; border-radius: 50%;
+  background: rgba(193,42,89,0.8); backdrop-filter: blur(10px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.3s;
+}
+.gal-item:hover .gal-play { opacity: 1; }
+.gal-play svg { width: 24px; height: 24px; fill: #fff; margin-left: 3px; }
+
+/* ===== FOOTER ===== */
+.footer {
+  background: #000; color: rgba(255,255,255,0.5);
+  padding: 80px 80px 40px;
+}
+.footer-top {
+  display: flex; justify-content: space-between;
+  padding-bottom: 48px; border-bottom: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 32px;
+}
+.footer-brand {
+  font-family: 'Montserrat'; font-weight: 900; font-size: 28px;
+  color: #fff; letter-spacing: 2px; margin-bottom: 16px;
+}
+.footer-desc { font-size: 14px; max-width: 320px; line-height: 1.7; }
+.footer-grid { display: flex; gap: 56px; }
+.footer-col h4 { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 18px; letter-spacing: 1px; }
+.footer-col a {
+  display: block; font-size: 13px; color: rgba(255,255,255,0.4);
+  text-decoration: none; margin-bottom: 12px; transition: color 0.3s;
+}
+.footer-col a:hover { color: var(--secondary); }
+.footer-social { display: flex; gap: 12px; margin-top: 24px; }
+.footer-social a {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.5); text-decoration: none; font-size: 14px;
+  transition: all 0.3s;
+}
+.footer-social a:hover { background: var(--primary); color: #fff; }
+.footer-bottom { font-size: 12px; color: rgba(255,255,255,0.25); display: flex; justify-content: space-between; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+  .hero { padding: 0 0 80px 40px; }
+  .hero-title { font-size: 56px; }
+  .hero-side { display: none; }
+  .sec { padding: 80px 40px; }
+  .now-section { grid-template-columns: 1fr; }
+  .now-visual { height: 400px; }
+  .hot-panel { min-height: 400px; }
+  .theme-grid { grid-template-columns: 1fr; }
+  .influ-feature { grid-template-columns: 1fr; }
+  .influ-feature:nth-child(even) { direction: ltr; }
+  .fest-cards { grid-template-columns: 1fr; padding: 40px; }
+}
+@media (max-width: 768px) {
+  .header { padding: 0 20px; }
+  .nav { display: none; }
+  .hero { padding: 0 0 60px 24px; }
+  .hero-title { font-size: 40px; }
+  .hero-desc { font-size: 15px; }
+  .sec { padding: 60px 20px; }
+  .sec-title { font-size: 32px; }
+  .now-content { padding: 40px 20px; }
+  .hot-strip { flex-direction: column; }
+  .hot-panel { min-height: 300px; }
+  .hot-panel:hover { flex: 1; }
+  .footer { padding: 60px 20px 30px; }
+  .footer-top { flex-direction: column; gap: 40px; }
+  .footer-grid { flex-wrap: wrap; gap: 32px; }
+  .gallery { grid-template-columns: 1fr 1fr; grid-auto-rows: 180px; }
+  .gal-1 { grid-column: span 2; }
+  .gal-2, .gal-3, .gal-4, .gal-5 { grid-column: span 1; }
+  .fest-hero-title { font-size: 36px; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header" id="header">
+  <a href="#" class="logo">VISIT GANGNAM</a>
+  <ul class="nav">
+    <li><a href="#">강남 소개</a></li>
+    <li><a href="#">볼거리</a></li>
+    <li><a href="#">먹거리</a></li>
+    <li><a href="#">즐길거리</a></li>
+    <li><a href="#">여행코스</a></li>
+    <li><a href="#">축제/행사</a></li>
+  </ul>
+  <div class="header-actions">
+    <button class="lang-btn">ENG</button>
+  </div>
+</header>
+
+<!-- S1: HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <div class="hero-eyebrow">Seoul&rsquo;s Hottest District</div>
+    <h1 class="hero-title">DISCOVER<br><em>GANGNAM</em></h1>
+    <p class="hero-desc">K-컬처의 심장부, 강남. 트렌디한 맛집부터 화려한 나이트라이프까지 당신만의 강남을 발견하세요.</p>
+    <div class="hero-btns">
+      <a href="#" class="btn-primary">코스 추천받기</a>
+      <a href="#" class="btn-outline">영상 보기</a>
+    </div>
+  </div>
+  <div class="hero-side">
+    <div class="hero-stat">
+      <div class="hero-stat-num">150+</div>
+      <div class="hero-stat-label">관광 명소</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">50+</div>
+      <div class="hero-stat-label">추천 코스</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">365</div>
+      <div class="hero-stat-label">날마다 축제</div>
+    </div>
+  </div>
+</section>
+
+<!-- S2: 지금 강남은 — 시네마틱 분할 -->
+<div class="now-section">
+  <div class="now-visual">
+    <img src="https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=1000&q=80" alt="강남 카페">
+  </div>
+  <div class="now-content" style="background:#fff;">
+    <div class="sec-header" style="margin-bottom:32px;">
+      <div class="sec-label">Now in Gangnam</div>
+      <h2 class="sec-title" style="font-size:36px;">지금 <span class="hl">강남</span>은</h2>
+    </div>
+    <div class="now-time-tabs">
+      <button class="now-time-tab active">오전</button>
+      <button class="now-time-tab">오후</button>
+      <button class="now-time-tab">저녁</button>
+    </div>
+    <div class="now-list">
+      <div class="now-item">
+        <div class="now-item-img">
+          <img src="https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=200&q=80" alt="">
+        </div>
+        <div>
+          <span class="now-item-tag">카페</span>
+          <div class="now-item-title">가로수길 브런치 카페</div>
+          <div class="now-item-desc">모닝 커피와 함께하는 여유로운 아침</div>
+        </div>
+      </div>
+      <div class="now-item">
+        <div class="now-item-img">
+          <img src="https://images.unsplash.com/photo-1588880331179-bc9b93a8cb5e?w=200&q=80" alt="">
+        </div>
+        <div>
+          <span class="now-item-tag">힐링</span>
+          <div class="now-item-title">양재시민의숲 산책</div>
+          <div class="now-item-desc">도심 속 초록빛 아침 산책 코스</div>
+        </div>
+      </div>
+      <div class="now-item">
+        <div class="now-item-img">
+          <img src="https://images.unsplash.com/photo-1537944434965-cf4679d1a598?w=200&q=80" alt="">
+        </div>
+        <div>
+          <span class="now-item-tag">문화</span>
+          <div class="now-item-title">삼성미술관 리움</div>
+          <div class="now-item-desc">오전에 만나는 세계적 컬렉션</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- S3: 핫플레이스 — 확장 패널 -->
+<div class="hot-strip">
+  <div class="hot-panel">
+    <img src="https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&q=80" alt="코엑스">
+    <div class="hot-panel-num">01</div>
+    <div class="hot-panel-overlay">
+      <div class="hot-panel-cat">볼거리</div>
+      <div class="hot-panel-title">코엑스 별마당 도서관</div>
+      <div class="hot-panel-sub">삼성동 &middot; 문화공간</div>
+    </div>
+  </div>
+  <div class="hot-panel">
+    <img src="https://images.unsplash.com/photo-1553163147-622ab57be1c7?w=800&q=80" alt="한식">
+    <div class="hot-panel-num">02</div>
+    <div class="hot-panel-overlay">
+      <div class="hot-panel-cat">먹거리</div>
+      <div class="hot-panel-title">청담동 한정식</div>
+      <div class="hot-panel-sub">청담동 &middot; 한식</div>
+    </div>
+  </div>
+  <div class="hot-panel">
+    <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80" alt="쇼핑">
+    <div class="hot-panel-num">03</div>
+    <div class="hot-panel-overlay">
+      <div class="hot-panel-cat">즐길거리</div>
+      <div class="hot-panel-title">압구정 로데오거리</div>
+      <div class="hot-panel-sub">압구정동 &middot; 쇼핑</div>
+    </div>
+  </div>
+  <div class="hot-panel">
+    <img src="https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800&q=80" alt="야경">
+    <div class="hot-panel-num">04</div>
+    <div class="hot-panel-overlay">
+      <div class="hot-panel-cat">볼거리</div>
+      <div class="hot-panel-title">봉은사 야경</div>
+      <div class="hot-panel-sub">삼성동 &middot; 야경명소</div>
+    </div>
+  </div>
+</div>
+
+<!-- S4: 테마여행 -->
+<section class="sec sec-white">
+  <div class="sec-header">
+    <div class="sec-label">Theme Travel</div>
+    <h2 class="sec-title">테마별 <span class="hl">여행코스</span></h2>
+    <p class="sec-desc">취향에 맞는 강남만의 특별한 여행 코스</p>
+  </div>
+  <div class="theme-grid">
+    <div class="theme-card">
+      <img src="https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&q=80" alt="K-POP">
+      <div class="theme-card-overlay">
+        <div class="theme-card-num">COURSE 01</div>
+        <h3 class="theme-card-title">K-POP 성지순례</h3>
+        <div class="theme-card-info">5개 스팟 &middot; 약 4시간</div>
+        <a href="#" class="theme-card-btn">코스 보기 &rarr;</a>
+      </div>
+    </div>
+    <div class="theme-card">
+      <img src="https://images.unsplash.com/photo-1590301157890-4810ed352733?w=800&q=80" alt="미식">
+      <div class="theme-card-overlay">
+        <div class="theme-card-num">COURSE 02</div>
+        <h3 class="theme-card-title">강남 미식 투어</h3>
+        <div class="theme-card-info">6개 스팟 &middot; 약 5시간</div>
+        <a href="#" class="theme-card-btn">코스 보기 &rarr;</a>
+      </div>
+    </div>
+    <div class="theme-card">
+      <img src="https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=800&q=80" alt="뷰티">
+      <div class="theme-card-overlay">
+        <div class="theme-card-num">COURSE 03</div>
+        <h3 class="theme-card-title">K-뷰티 체험 코스</h3>
+        <div class="theme-card-info">4개 스팟 &middot; 약 3시간</div>
+        <a href="#" class="theme-card-btn">코스 보기 &rarr;</a>
+      </div>
+    </div>
+    <div class="theme-card">
+      <img src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=800&q=80" alt="둘레길">
+      <div class="theme-card-overlay">
+        <div class="theme-card-num">COURSE 04</div>
+        <h3 class="theme-card-title">강남 둘레길 트레킹</h3>
+        <div class="theme-card-info">8개 스팟 &middot; 약 6시간</div>
+        <a href="#" class="theme-card-btn">코스 보기 &rarr;</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S5: 인플루언서 -->
+<section class="sec sec-surface">
+  <div class="sec-header">
+    <div class="sec-label">Influencer Picks</div>
+    <h2 class="sec-title">인플루언서 <span class="hl">추천</span></h2>
+  </div>
+  <div class="influ-feature">
+    <div class="influ-feature-img">
+      <img src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80" alt="">
+    </div>
+    <div class="influ-feature-body">
+      <div class="influ-profile">
+        <img class="influ-avatar" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&q=80" alt="">
+        <div>
+          <div class="influ-name">김서현</div>
+          <div class="influ-handle">@seohyun_eats &middot; 팔로워 12.3만</div>
+        </div>
+      </div>
+      <h3 class="influ-quote">&ldquo;압구정에서 보내는 <span>완벽한 하루</span>,<br>제가 직접 다녀왔어요&rdquo;</h3>
+      <p class="influ-desc">브런치 카페에서 시작해 숨겨진 맛집, 감성 쇼핑까지. 압구정의 매력을 하루에 담은 코스를 소개합니다.</p>
+      <div class="influ-tags">
+        <span class="influ-tag">맛집</span>
+        <span class="influ-tag">카페</span>
+        <span class="influ-tag">쇼핑</span>
+      </div>
+    </div>
+  </div>
+  <div class="influ-feature">
+    <div class="influ-feature-img">
+      <img src="https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=800&q=80" alt="">
+    </div>
+    <div class="influ-feature-body">
+      <div class="influ-profile">
+        <img class="influ-avatar" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&q=80" alt="">
+        <div>
+          <div class="influ-name">Alex Kim</div>
+          <div class="influ-handle">@alexinseoul &middot; 98K followers</div>
+        </div>
+      </div>
+      <h3 class="influ-quote">&ldquo;<span>Gangnam Nights</span> you'll<br>never forget&rdquo;</h3>
+      <p class="influ-desc">From rooftop bars to neon-lit streets, experience the electric nightlife that makes Gangnam the heart of Seoul's entertainment scene.</p>
+      <div class="influ-tags">
+        <span class="influ-tag">Nightlife</span>
+        <span class="influ-tag">Rooftop</span>
+        <span class="influ-tag">K-Culture</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S6: 축제/행사 -->
+<div class="sec-dark">
+  <div class="fest-hero">
+    <div class="fest-hero-bg"></div>
+    <div class="fest-hero-content">
+      <div class="fest-hero-badge">COMING SOON</div>
+      <h2 class="fest-hero-title">2026<br>GANGNAM FESTIVAL</h2>
+      <div class="fest-hero-date">2026.04.01 - 04.15 | 코엑스 일대</div>
+      <a href="#" class="btn-primary" style="margin-top:12px;">자세히 보기</a>
+    </div>
+  </div>
+  <div class="fest-cards" style="background:var(--primary-dark);">
+    <div class="fest-card">
+      <div class="fest-card-img">
+        <img src="https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&q=80" alt="">
+      </div>
+      <div class="fest-card-body">
+        <span class="fest-badge soon">예정</span>
+        <h3 class="fest-card-title">강남 K-POP 콘서트</h3>
+        <div class="fest-card-date">2026.05.10 - 05.12</div>
+      </div>
+    </div>
+    <div class="fest-card">
+      <div class="fest-card-img">
+        <img src="https://images.unsplash.com/photo-1569863959165-56dae551d4fc?w=600&q=80" alt="">
+      </div>
+      <div class="fest-card-body">
+        <span class="fest-badge soon">예정</span>
+        <h3 class="fest-card-title">아트 강남 2026</h3>
+        <div class="fest-card-date">2026.06.01 - 06.30</div>
+      </div>
+    </div>
+    <div class="fest-card">
+      <div class="fest-card-img">
+        <img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=80" alt="">
+      </div>
+      <div class="fest-card-body">
+        <span class="fest-badge soon">예정</span>
+        <h3 class="fest-card-title">강남 미식 위크</h3>
+        <div class="fest-card-date">2026.07.01 - 07.14</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- S7: 강남을 보다 -->
+<section class="sec sec-white">
+  <div class="sec-header">
+    <div class="sec-label">See Gangnam</div>
+    <h2 class="sec-title">강남을 <span class="hl">보다</span></h2>
+    <p class="sec-desc">영상과 사진으로 만나는 강남의 다채로운 순간들</p>
+  </div>
+  <div class="gallery">
+    <div class="gal-item gal-1">
+      <img src="https://images.unsplash.com/photo-1517154421773-0529f569f283?w=1000&q=80" alt="">
+      <div class="gal-play">
+        <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+      </div>
+    </div>
+    <div class="gal-item gal-2">
+      <img src="https://images.unsplash.com/photo-1546874177-9e664107314e?w=600&q=80" alt="">
+    </div>
+    <div class="gal-item gal-3">
+      <img src="https://images.unsplash.com/photo-1583400802046-2e2ffc5f4844?w=600&q=80" alt="">
+    </div>
+    <div class="gal-item gal-4">
+      <img src="https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=600&q=80" alt="">
+    </div>
+    <div class="gal-item gal-5">
+      <img src="https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=600&q=80" alt="">
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-top">
+    <div>
+      <div class="footer-brand">VISIT GANGNAM</div>
+      <p class="footer-desc">서울 강남구 관광진흥과가 운영하는 공식 관광 플랫폼</p>
+      <div class="footer-social">
+        <a href="#">IG</a><a href="#">FB</a><a href="#">YT</a><a href="#">TW</a>
+      </div>
+    </div>
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>EXPLORE</h4>
+        <a href="#">볼거리</a><a href="#">먹거리</a><a href="#">즐길거리</a><a href="#">여행코스</a>
+      </div>
+      <div class="footer-col">
+        <h4>EVENTS</h4>
+        <a href="#">축제/행사</a><a href="#">강남페스티벌</a><a href="#">공연/전시</a>
+      </div>
+      <div class="footer-col">
+        <h4>INFO</h4>
+        <a href="#">개인정보처리방침</a><a href="#">이용약관</a><a href="#">찾아오시는 길</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>&copy; 2026 Visit Gangnam. All rights reserved.</span>
+    <span>강남구청 관광진흥과</span>
+  </div>
+</footer>
+
+<script>
+window.addEventListener('scroll', () => {
+  document.getElementById('header').classList.toggle('scrolled', window.scrollY > 50);
+});
+document.querySelectorAll('.now-time-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.now-time-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

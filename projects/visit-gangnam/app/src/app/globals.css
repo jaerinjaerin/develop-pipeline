@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #C12A59;
+  --primary-dark: #1B1F3B;
+  --secondary: #00C9A7;
+  --bg: #FFFFFF;
+  --surface: #F5F5F7;
+  --text: #222222;
+  --text-sub: #666666;
+  --radius: 14px;
+}
+
+@theme inline {
+  --font-sans: var(--font-noto-sans-kr), "Noto Sans KR", sans-serif;
+  --font-montserrat: var(--font-montserrat), "Montserrat", sans-serif;
+
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-secondary: var(--secondary);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-text: var(--text);
+  --color-text-sub: var(--text-sub);
+  --radius-default: var(--radius);
+}
+
+body {
+  font-family: var(--font-noto-sans-kr), "Noto Sans KR", sans-serif;
+  color: var(--text);
+  background: #000;
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+/* Utility: Montserrat font */
+.font-montserrat {
+  font-family: var(--font-montserrat), "Montserrat", sans-serif;
+}
+
+/* Utility: Gradient text for "GANGNAM" */
+.text-gradient-primary {
+  background: linear-gradient(135deg, #C12A59, #E84580);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Utility: Glassmorphism variants */
+.glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-dark {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-light {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Section backgrounds */
+.sec-white { background: #fff; }
+.sec-surface { background: #F5F5F7; }
+.sec-dark { background: #1B1F3B; }
+.sec-black { background: #000; }

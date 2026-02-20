@@ -1,44 +1,33 @@
 version: "3.8"
 
 services:
-  frontend:
+  app:
     build:
-      context: ../frontend
-      dockerfile: ../deploy/Dockerfile.frontend
-    image: visit-gangnam-frontend:${TAG:-latest}
+      context: ../app
+      dockerfile: ../deploy/Dockerfile
+    image: visit-gangnam:${TAG:-latest}
     ports:
-      - "${FE_PORT:-3000}:3000"
+      - "${PORT:-3000}:3000"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
-      - NEXT_PUBLIC_API_URL=${API_URL:-http://backend:8000}
+      - DATABASE_URL=${DATABASE_URL:-mysql://app:changeme@db:3306/app}
     depends_on:
-      - backend
-    profiles:
-      - staging
-      - production
-
-  backend:
-    build:
-      context: ../backend
-      dockerfile: ../deploy/Dockerfile.backend
-    image: visit-gangnam-backend:${TAG:-latest}
-    ports:
-      - "${BE_PORT:-8000}:8000"
-    environment:
-      - DATABASE_URL=${DATABASE_URL:-sqlite:///./app.db}
-      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - db
     profiles:
       - staging
       - production
 
   db:
-    image: postgres:16-alpine
+    image: mysql:8.0
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-app}
-      - POSTGRES_USER=${POSTGRES_USER:-app}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-app}
+      - MYSQL_USER=${MYSQL_USER:-app}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-changeme}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootchangeme}
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/mysql
+    ports:
+      - "${DB_PORT:-3306}:3306"
     profiles:
       - staging
       - production
