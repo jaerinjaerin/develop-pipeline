@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../deploy/Dockerfile.frontend
+    image: visit-gangnam-frontend:${TAG:-latest}
+    ports:
+      - "${FE_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - NEXT_PUBLIC_API_URL=${API_URL:-http://backend:8000}
+    depends_on:
+      - backend
+    profiles:
+      - staging
+      - production
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../deploy/Dockerfile.backend
+    image: visit-gangnam-backend:${TAG:-latest}
+    ports:
+      - "${BE_PORT:-8000}:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./app.db}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+    profiles:
+      - staging
+      - production
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-app}
+      - POSTGRES_USER=${POSTGRES_USER:-app}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    profiles:
+      - staging
+      - production
+
+volumes:
+  db_data:

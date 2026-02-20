@@ -1,0 +1,1 @@
+../../../../pipeline/skills/mermaid.md

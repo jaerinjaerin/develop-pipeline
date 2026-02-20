@@ -1,0 +1,25 @@
+# 배포 설정 — Agent 08이 참조합니다
+# provider를 변경하여 배포 대상을 확장할 수 있습니다
+
+provider: docker  # docker | vercel | aws-ecs | gcp-run
+
+staging:
+  url: http://localhost:3000
+  api_url: http://localhost:8000
+  health_check:
+    frontend: /
+    backend: /health
+  timeout: 30  # Health Check 타임아웃 (초)
+
+production:
+  url: https://example.com
+  api_url: https://api.example.com
+  health_check:
+    frontend: /
+    backend: /health
+  timeout: 60
+  requires_approval: true  # Production은 반드시 사람 승인 필요
+
+rollback:
+  max_retries: 3  # 롤백 최대 시도 횟수
+  escalate_after: 3  # 이 횟수 이후 사람에게 에스컬레이션
