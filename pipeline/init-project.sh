@@ -21,6 +21,11 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PIPELINE_DIR="$ROOT_DIR/pipeline"
 PROJECTS_DIR="$ROOT_DIR/projects"
 
+# macOS 호환: realpath --relative-to 대체 함수
+relpath() {
+    python3 -c "import os.path; print(os.path.relpath('$1', '$2'))"
+}
+
 # --- 인자 검증 ---
 if [ $# -lt 3 ]; then
     echo "Usage: $0 <project-name> <fe-stack> <be-stack>"
@@ -87,7 +92,7 @@ AGENTS_TARGET="$PROJECT_DIR/.claude/agents"
 
 for agent_file in "$AGENTS_SOURCE"/*.md; do
     filename="$(basename "$agent_file")"
-    relative_path="$(realpath --relative-to="$AGENTS_TARGET" "$agent_file")"
+    relative_path="$(relpath "$agent_file" "$AGENTS_TARGET")"
     ln -s "$relative_path" "$AGENTS_TARGET/$filename"
     echo "  → $filename"
 done
@@ -101,7 +106,7 @@ SKILLS_TARGET="$PROJECT_DIR/.claude/skills"
 for skill_file in "$SKILLS_SOURCE"/*.md; do
     if [ -f "$skill_file" ]; then
         filename="$(basename "$skill_file")"
-        relative_path="$(realpath --relative-to="$SKILLS_TARGET" "$skill_file")"
+        relative_path="$(relpath "$skill_file" "$SKILLS_TARGET")"
         ln -s "$relative_path" "$SKILLS_TARGET/$filename"
         echo "  → $filename"
     fi
@@ -111,7 +116,7 @@ done
 for skill_dir in "$SKILLS_SOURCE"/*/; do
     if [ -d "$skill_dir" ]; then
         dirname="$(basename "$skill_dir")"
-        relative_path="$(realpath --relative-to="$SKILLS_TARGET" "$skill_dir")"
+        relative_path="$(relpath "$skill_dir" "$SKILLS_TARGET")"
         ln -s "$relative_path" "$SKILLS_TARGET/$dirname"
         echo "  → $dirname/"
     fi
@@ -281,7 +286,7 @@ COMMANDS_TARGET="$PROJECT_DIR/.claude/commands"
 for cmd_file in "$COMMANDS_SOURCE"/*.md; do
     if [ -f "$cmd_file" ]; then
         filename="$(basename "$cmd_file")"
-        relative_path="$(realpath --relative-to="$COMMANDS_TARGET" "$cmd_file")"
+        relative_path="$(relpath "$cmd_file" "$COMMANDS_TARGET")"
         ln -s "$relative_path" "$COMMANDS_TARGET/$filename"
         echo "  → /$filename"
     fi
