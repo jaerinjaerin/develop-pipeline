@@ -24,6 +24,59 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PIPELINE_DIR="$ROOT_DIR/pipeline"
 PROJECTS_DIR="$ROOT_DIR/projects"
 
+# --- 환경 의존성 검증 ---
+check_prerequisites() {
+    local missing_required=()
+    local missing_optional=()
+
+    # 필수 도구 확인
+    for cmd in python3 jq node npm; do
+        if ! command -v "$cmd" &>/dev/null; then
+            missing_required+=("$cmd")
+        fi
+    done
+
+    if [ ${#missing_required[@]} -gt 0 ]; then
+        echo "❌ 필수 도구가 설치되어 있지 않습니다:"
+        for cmd in "${missing_required[@]}"; do
+            case "$cmd" in
+                python3) echo "  - python3: brew install python3 또는 https://www.python.org/" ;;
+                jq)      echo "  - jq: brew install jq 또는 https://jqlang.github.io/jq/" ;;
+                node)    echo "  - node: brew install node 또는 https://nodejs.org/" ;;
+                npm)     echo "  - npm: node 설치 시 함께 설치됨" ;;
+            esac
+        done
+        echo ""
+        echo "필수 도구를 모두 설치한 후 다시 실행해주세요."
+        exit 1
+    fi
+
+    # 권장 도구 확인
+    for cmd in gh docker; do
+        if ! command -v "$cmd" &>/dev/null; then
+            missing_optional+=("$cmd")
+        fi
+    done
+
+    if [ ${#missing_optional[@]} -gt 0 ]; then
+        echo "⚠️  권장 도구가 설치되어 있지 않습니다 (계속 진행 가능):"
+        for cmd in "${missing_optional[@]}"; do
+            case "$cmd" in
+                gh)     echo "  - gh: brew install gh 또는 https://cli.github.com/ (GitHub 이슈/PR 생성에 필요)" ;;
+                docker) echo "  - docker: https://www.docker.com/ (배포에 필요)" ;;
+            esac
+        done
+        echo ""
+    fi
+}
+
+check_prerequisites
+
+# macOS 호환: realpath --relative-to 대체 함수
+relpath() {
+    python3 -c "import os.path; print(os.path.relpath('$1', '$2'))"
+}
+
 # --- 인자 검증 ---
 if [ $# -lt 3 ]; then
     echo "Usage: $0 <project-name> <fe-stack> <be-stack>"
@@ -115,7 +168,7 @@ AGENTS_TARGET="$PROJECT_DIR/.claude/agents"
 
 for agent_file in "$AGENTS_SOURCE"/*.md; do
     filename="$(basename "$agent_file")"
-    relative_path="$(realpath --relative-to="$AGENTS_TARGET" "$agent_file")"
+    relative_path="$(relpath "$agent_file" "$AGENTS_TARGET")"
     ln -s "$relative_path" "$AGENTS_TARGET/$filename"
     echo "  → $filename"
 done
@@ -129,7 +182,7 @@ SKILLS_TARGET="$PROJECT_DIR/.claude/skills"
 for skill_file in "$SKILLS_SOURCE"/*.md; do
     if [ -f "$skill_file" ]; then
         filename="$(basename "$skill_file")"
-        relative_path="$(realpath --relative-to="$SKILLS_TARGET" "$skill_file")"
+        relative_path="$(relpath "$skill_file" "$SKILLS_TARGET")"
         ln -s "$relative_path" "$SKILLS_TARGET/$filename"
         echo "  → $filename"
     fi
@@ -139,7 +192,7 @@ done
 for skill_dir in "$SKILLS_SOURCE"/*/; do
     if [ -d "$skill_dir" ]; then
         dirname="$(basename "$skill_dir")"
-        relative_path="$(realpath --relative-to="$SKILLS_TARGET" "$skill_dir")"
+        relative_path="$(relpath "$skill_dir" "$SKILLS_TARGET")"
         ln -s "$relative_path" "$SKILLS_TARGET/$dirname"
         echo "  → $dirname/"
     fi
@@ -274,55 +327,12 @@ inject_be_rule() {
     esac
 }
 
-# 풀스택 스킬 룰 주입
-inject_fullstack_rule() {
-    local stack="$1"
-    local rules_file="$2"
-    local tmp_file="${rules_file}.tmp"
-
-    case "$stack" in
-        nextjs)
-            jq '.skills["nextjs-fullstack-guidelines"] = {
-                "type": "guardrail",
-                "enforcement": "block",
-                "priority": "high",
-                "description": "Next.js App Router fullstack, Prisma ORM, API Routes, Server Actions",
-                "promptTriggers": {
-                    "keywords": ["component", "react", "UI", "page", "Next.js", "nextjs", "server component", "client component", "app router", "use client", "API", "prisma", "database", "model", "schema", "server action"],
-                    "intentPatterns": ["(create|add|make|build|update).*?(component|UI|page|modal|form|API|endpoint|model)", "(server|client).*?component", "(prisma|database|schema).*?(create|update|migrate)"]
-                },
-                "fileTriggers": {
-                    "pathPatterns": ["app/src/**/*.tsx", "app/src/**/*.ts", "app/prisma/**/*"],
-                    "pathExclusions": ["**/*.test.tsx", "**/*.spec.tsx"]
-                }
-            }' "$rules_file" > "$tmp_file" && mv "$tmp_file" "$rules_file"
-            echo "  → nextjs-fullstack-guidelines rule injected"
-            ;;
-        *)
-            jq --arg stack "$stack" '.skills[$stack + "-fullstack-guidelines"] = {
-                "type": "guardrail",
-                "enforcement": "suggest",
-                "priority": "high",
-                "description": ($stack + " fullstack best practices"),
-                "promptTriggers": {
-                    "keywords": ["component", "UI", "page", "API", "database", "model", "endpoint"],
-                    "intentPatterns": ["(create|add|make|build|update).*?(component|UI|page|modal|form|API|endpoint|model)"]
-                },
-                "fileTriggers": {
-                    "pathPatterns": ["app/src/**/*", "app/prisma/**/*"],
-                    "pathExclusions": ["**/*.test.*", "**/*.spec.*"]
-                }
-            }' "$rules_file" > "$tmp_file" && mv "$tmp_file" "$rules_file"
-            echo "  → $stack-fullstack-guidelines rule injected (generic)"
-            ;;
-    esac
-}
-
-inject_fe_rule "$FE_STACK" "$SKILLS_TARGET/skill-rules.json"
-if [ "$FULLSTACK_MODE" = true ]; then
-    inject_fullstack_rule "$FE_STACK" "$SKILLS_TARGET/skill-rules.json"
-else
+if command -v jq &>/dev/null; then
+    inject_fe_rule "$FE_STACK" "$SKILLS_TARGET/skill-rules.json"
     inject_be_rule "$BE_STACK" "$SKILLS_TARGET/skill-rules.json"
+else
+    echo "  ⚠️  jq가 설치되어 있지 않아 스택 스킬 룰 주입을 건너뜁니다."
+    echo "     설치 후 수동으로 실행하세요: brew install jq"
 fi
 
 # --- 5. Hooks 복사 및 설치 (pipeline/hooks/ 단일 소스) ---
@@ -345,7 +355,14 @@ chmod +x "$HOOKS_TARGET"/*.sh
 
 # npm 의존성 설치
 echo "  Installing hook dependencies..."
-(cd "$HOOKS_TARGET" && npm install --silent 2>/dev/null) || echo "  ⚠️  npm install failed - run manually: cd $HOOKS_TARGET && npm install"
+if command -v npm &>/dev/null; then
+    if ! (cd "$HOOKS_TARGET" && npm install --silent 2>/dev/null); then
+        echo "  ⚠️  npm install 실패 — 수동으로 실행해주세요:"
+        echo "     cd $HOOKS_TARGET && npm install"
+    fi
+else
+    echo "  ⚠️  npm이 설치되어 있지 않아 hook 의존성 설치를 건너뜁니다."
+fi
 
 echo "  → Hooks installed"
 
@@ -357,7 +374,7 @@ COMMANDS_TARGET="$PROJECT_DIR/.claude/commands"
 for cmd_file in "$COMMANDS_SOURCE"/*.md; do
     if [ -f "$cmd_file" ]; then
         filename="$(basename "$cmd_file")"
-        relative_path="$(realpath --relative-to="$COMMANDS_TARGET" "$cmd_file")"
+        relative_path="$(relpath "$cmd_file" "$COMMANDS_TARGET")"
         ln -s "$relative_path" "$COMMANDS_TARGET/$filename"
         echo "  → /$filename"
     fi

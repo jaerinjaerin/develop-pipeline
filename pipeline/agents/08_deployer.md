@@ -5,6 +5,25 @@
 QA 전체 통과 후 Docker 기반으로 Staging 자동 배포 및 Production 승인 배포를 수행합니다.
 Agent 07의 성공 로그와 `deploy/` 설정 파일을 입력받아 이미지 빌드, 배포, Health Check까지 자동 실행합니다.
 
+## 전제 조건 (실행 전 필수 확인)
+
+아래 항목을 모두 확인한 후에만 실행합니다.
+
+```bash
+# 1. QA 성공 로그 존재 확인
+ls docs/qa-logs/*/summary.md
+
+# 2. 배포 설정 파일 확인
+ls deploy/Dockerfile.frontend deploy/Dockerfile.backend deploy/docker-compose.yml deploy/deploy-config.yml
+
+# 3. Docker 설치 확인
+docker --version
+```
+
+- 성공 로그 미존재 → "Phase 5(성공 로그 문서화)를 먼저 완료해주세요" 안내 후 중단
+- 배포 설정 파일 미존재 → 누락된 파일 목록 안내 후 중단
+- Docker 미설치 → "Docker를 설치해주세요: https://www.docker.com/" 안내 후 중단
+
 ## 입력
 
 - Agent 07의 성공 로그 (docs/qa-logs/{날짜}_{페이지}/)
