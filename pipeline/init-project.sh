@@ -6,14 +6,17 @@ set -euo pipefail
 #
 # Usage:
 #   ./pipeline/init-project.sh <project-name> <fe-stack> <be-stack>
+#   ./pipeline/init-project.sh <project-name> <fe-stack> none    # 풀스택 모드
 #
 # Example:
 #   ./pipeline/init-project.sh shopping-mall nextjs fastapi
 #   ./pipeline/init-project.sh blog-site react django
+#   ./pipeline/init-project.sh visit-gangnam nextjs none         # Next.js 풀스택
 #
 # 지원 스택:
 #   사전 정의: nextjs, react (FE) / fastapi, django (BE)
 #   그 외 스택도 지정 가능 — 가이드라인이 없으면 템플릿에서 자동 생성
+#   be-stack=none → 풀스택 모드 (단일 앱, backend/ 미생성)
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,15 +31,23 @@ if [ $# -lt 3 ]; then
     echo "  project-name  프로젝트 이름 (영문, 하이픈 허용)"
     echo "  fe-stack      Frontend 스택 (예: nextjs, react, vue, svelte ...)"
     echo "  be-stack      Backend 스택 (예: fastapi, django, nestjs, spring ...)"
+    echo "                'none'을 지정하면 풀스택 모드 (단일 앱)"
     echo ""
     echo "Example:"
     echo "  $0 shopping-mall nextjs fastapi"
+    echo "  $0 visit-gangnam nextjs none    # 풀스택 모드"
     exit 1
 fi
 
 PROJECT_NAME="$1"
 FE_STACK="$2"
 BE_STACK="$3"
+
+# --- 풀스택 모드 판별 ---
+FULLSTACK_MODE=false
+if [ "$BE_STACK" = "none" ]; then
+    FULLSTACK_MODE=true
+fi
 
 # --- 스택 가이드라인 확인/생성 ---
 FE_GUIDELINE="$PIPELINE_DIR/stacks/$FE_STACK/frontend-guidelines.md"
@@ -46,11 +57,20 @@ if [ ! -f "$FE_GUIDELINE" ]; then
     sed "s|{{FE_STACK}}|$FE_STACK|g" "$PIPELINE_DIR/templates/frontend-guidelines.md.template" > "$FE_GUIDELINE"
 fi
 
-BE_GUIDELINE="$PIPELINE_DIR/stacks/$BE_STACK/backend-guidelines.md"
-if [ ! -f "$BE_GUIDELINE" ]; then
-    echo "  ℹ️  No guideline for '$BE_STACK'. Generating from template..."
-    mkdir -p "$PIPELINE_DIR/stacks/$BE_STACK"
-    sed "s|{{BE_STACK}}|$BE_STACK|g" "$PIPELINE_DIR/templates/backend-guidelines.md.template" > "$BE_GUIDELINE"
+if [ "$FULLSTACK_MODE" = true ]; then
+    # 풀스택 가이드라인 확인
+    FULLSTACK_GUIDELINE="$PIPELINE_DIR/stacks/$FE_STACK/fullstack-guidelines.md"
+    if [ ! -f "$FULLSTACK_GUIDELINE" ]; then
+        echo "  ℹ️  No fullstack guideline for '$FE_STACK'. Generating from template..."
+        sed "s|{{FE_STACK}}|$FE_STACK|g" "$PIPELINE_DIR/templates/fullstack-guidelines.md.template" > "$FULLSTACK_GUIDELINE"
+    fi
+else
+    BE_GUIDELINE="$PIPELINE_DIR/stacks/$BE_STACK/backend-guidelines.md"
+    if [ ! -f "$BE_GUIDELINE" ]; then
+        echo "  ℹ️  No guideline for '$BE_STACK'. Generating from template..."
+        mkdir -p "$PIPELINE_DIR/stacks/$BE_STACK"
+        sed "s|{{BE_STACK}}|$BE_STACK|g" "$PIPELINE_DIR/templates/backend-guidelines.md.template" > "$BE_GUIDELINE"
+    fi
 fi
 
 # --- 프로젝트 중복 확인 ---
@@ -62,7 +82,11 @@ fi
 
 echo "=== Creating project: $PROJECT_NAME ==="
 echo "  FE Stack: $FE_STACK"
-echo "  BE Stack: $BE_STACK"
+if [ "$FULLSTACK_MODE" = true ]; then
+    echo "  Mode: Fullstack (single app)"
+else
+    echo "  BE Stack: $BE_STACK"
+fi
 echo ""
 
 # --- 1. 디렉토리 구조 생성 ---
@@ -71,8 +95,12 @@ mkdir -p "$PROJECT_DIR/.claude/agents"
 mkdir -p "$PROJECT_DIR/.claude/skills"
 mkdir -p "$PROJECT_DIR/.claude/commands"
 mkdir -p "$PROJECT_DIR/.claude/hooks"
-mkdir -p "$PROJECT_DIR/frontend"
-mkdir -p "$PROJECT_DIR/backend"
+if [ "$FULLSTACK_MODE" = true ]; then
+    mkdir -p "$PROJECT_DIR/app"
+else
+    mkdir -p "$PROJECT_DIR/frontend"
+    mkdir -p "$PROJECT_DIR/backend"
+fi
 mkdir -p "$PROJECT_DIR/deploy"
 mkdir -p "$PROJECT_DIR/docs/errors"
 mkdir -p "$PROJECT_DIR/docs/qa-logs"
@@ -246,8 +274,56 @@ inject_be_rule() {
     esac
 }
 
+# 풀스택 스킬 룰 주입
+inject_fullstack_rule() {
+    local stack="$1"
+    local rules_file="$2"
+    local tmp_file="${rules_file}.tmp"
+
+    case "$stack" in
+        nextjs)
+            jq '.skills["nextjs-fullstack-guidelines"] = {
+                "type": "guardrail",
+                "enforcement": "block",
+                "priority": "high",
+                "description": "Next.js App Router fullstack, Prisma ORM, API Routes, Server Actions",
+                "promptTriggers": {
+                    "keywords": ["component", "react", "UI", "page", "Next.js", "nextjs", "server component", "client component", "app router", "use client", "API", "prisma", "database", "model", "schema", "server action"],
+                    "intentPatterns": ["(create|add|make|build|update).*?(component|UI|page|modal|form|API|endpoint|model)", "(server|client).*?component", "(prisma|database|schema).*?(create|update|migrate)"]
+                },
+                "fileTriggers": {
+                    "pathPatterns": ["app/src/**/*.tsx", "app/src/**/*.ts", "app/prisma/**/*"],
+                    "pathExclusions": ["**/*.test.tsx", "**/*.spec.tsx"]
+                }
+            }' "$rules_file" > "$tmp_file" && mv "$tmp_file" "$rules_file"
+            echo "  → nextjs-fullstack-guidelines rule injected"
+            ;;
+        *)
+            jq --arg stack "$stack" '.skills[$stack + "-fullstack-guidelines"] = {
+                "type": "guardrail",
+                "enforcement": "suggest",
+                "priority": "high",
+                "description": ($stack + " fullstack best practices"),
+                "promptTriggers": {
+                    "keywords": ["component", "UI", "page", "API", "database", "model", "endpoint"],
+                    "intentPatterns": ["(create|add|make|build|update).*?(component|UI|page|modal|form|API|endpoint|model)"]
+                },
+                "fileTriggers": {
+                    "pathPatterns": ["app/src/**/*", "app/prisma/**/*"],
+                    "pathExclusions": ["**/*.test.*", "**/*.spec.*"]
+                }
+            }' "$rules_file" > "$tmp_file" && mv "$tmp_file" "$rules_file"
+            echo "  → $stack-fullstack-guidelines rule injected (generic)"
+            ;;
+    esac
+}
+
 inject_fe_rule "$FE_STACK" "$SKILLS_TARGET/skill-rules.json"
-inject_be_rule "$BE_STACK" "$SKILLS_TARGET/skill-rules.json"
+if [ "$FULLSTACK_MODE" = true ]; then
+    inject_fullstack_rule "$FE_STACK" "$SKILLS_TARGET/skill-rules.json"
+else
+    inject_be_rule "$BE_STACK" "$SKILLS_TARGET/skill-rules.json"
+fi
 
 # --- 5. Hooks 복사 및 설치 (pipeline/hooks/ 단일 소스) ---
 echo "[5/9] Setting up hooks..."
@@ -331,19 +407,127 @@ echo "  → settings.json"
 
 # --- 8. 프로젝트 CLAUDE.md 생성 ---
 echo "[8/9] Generating project CLAUDE.md..."
-TEMPLATE="$PIPELINE_DIR/templates/CLAUDE.md.template"
-
-sed -e "s|{{PROJECT_NAME}}|$PROJECT_NAME|g" \
-    -e "s|{{FE_STACK}}|$FE_STACK|g" \
-    -e "s|{{BE_STACK}}|$BE_STACK|g" \
-    -e "s|{{GITHUB_OWNER}}|owner|g" \
-    -e "s|{{DESCRIPTION}}|$PROJECT_NAME 프로젝트|g" \
-    "$TEMPLATE" > "$PROJECT_DIR/CLAUDE.md"
+if [ "$FULLSTACK_MODE" = true ]; then
+    TEMPLATE="$PIPELINE_DIR/templates/CLAUDE.md.fullstack.template"
+    sed -e "s|{{PROJECT_NAME}}|$PROJECT_NAME|g" \
+        -e "s|{{FE_STACK}}|$FE_STACK|g" \
+        -e "s|{{GITHUB_OWNER}}|owner|g" \
+        -e "s|{{DESCRIPTION}}|$PROJECT_NAME 프로젝트|g" \
+        "$TEMPLATE" > "$PROJECT_DIR/CLAUDE.md"
+else
+    TEMPLATE="$PIPELINE_DIR/templates/CLAUDE.md.template"
+    sed -e "s|{{PROJECT_NAME}}|$PROJECT_NAME|g" \
+        -e "s|{{FE_STACK}}|$FE_STACK|g" \
+        -e "s|{{BE_STACK}}|$BE_STACK|g" \
+        -e "s|{{GITHUB_OWNER}}|owner|g" \
+        -e "s|{{DESCRIPTION}}|$PROJECT_NAME 프로젝트|g" \
+        "$TEMPLATE" > "$PROJECT_DIR/CLAUDE.md"
+fi
 
 # --- 9. Deploy 설정 파일 생성 ---
 echo "[9/9] Creating deploy configuration..."
 
-cat > "$PROJECT_DIR/deploy/Dockerfile.frontend" << 'DEPLOY_FE_EOF'
+if [ "$FULLSTACK_MODE" = true ]; then
+    # --- 풀스택 단일 앱 배포 설정 ---
+    cat > "$PROJECT_DIR/deploy/Dockerfile" << 'DEPLOY_EOF'
+# Fullstack Next.js Dockerfile
+
+# --- Build stage ---
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npx prisma generate
+RUN npm run build
+
+# --- Production stage ---
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=builder /app/package*.json ./
+RUN npm ci --only=production
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+EXPOSE 3000
+CMD ["npm", "start"]
+DEPLOY_EOF
+
+    cat > "$PROJECT_DIR/deploy/docker-compose.yml" << DEPLOY_COMPOSE_EOF
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: ../app
+      dockerfile: ../deploy/Dockerfile
+    image: ${PROJECT_NAME}:\${TAG:-latest}
+    ports:
+      - "\${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=\${NODE_ENV:-production}
+      - DATABASE_URL=\${DATABASE_URL:-mysql://app:changeme@db:3306/app}
+    depends_on:
+      - db
+    profiles:
+      - staging
+      - production
+
+  db:
+    image: mysql:8.0
+    environment:
+      - MYSQL_DATABASE=\${MYSQL_DATABASE:-app}
+      - MYSQL_USER=\${MYSQL_USER:-app}
+      - MYSQL_PASSWORD=\${MYSQL_PASSWORD:-changeme}
+      - MYSQL_ROOT_PASSWORD=\${MYSQL_ROOT_PASSWORD:-rootchangeme}
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "\${DB_PORT:-3306}:3306"
+    profiles:
+      - staging
+      - production
+
+volumes:
+  db_data:
+DEPLOY_COMPOSE_EOF
+
+    cat > "$PROJECT_DIR/deploy/deploy-config.yml" << 'DEPLOY_CONFIG_EOF'
+# 배포 설정 — Agent 08이 참조합니다
+# provider를 변경하여 배포 대상을 확장할 수 있습니다
+
+provider: cafe24  # cafe24 | docker | vercel
+
+staging:
+  url: http://localhost:3000
+  health_check:
+    app: /
+    api: /api/health
+  timeout: 30
+
+production:
+  url: https://example.com
+  health_check:
+    app: /
+    api: /api/health
+  timeout: 60
+  requires_approval: true
+
+rollback:
+  max_retries: 3
+  escalate_after: 3
+DEPLOY_CONFIG_EOF
+
+    echo "  → Dockerfile"
+    echo "  → docker-compose.yml"
+    echo "  → deploy-config.yml"
+else
+    # --- FE/BE 분리 배포 설정 ---
+    cat > "$PROJECT_DIR/deploy/Dockerfile.frontend" << 'DEPLOY_FE_EOF'
 # Frontend Dockerfile
 # 프로젝트 FE 스택에 맞게 수정하세요
 
@@ -369,7 +553,7 @@ EXPOSE 3000
 CMD ["npm", "start"]
 DEPLOY_FE_EOF
 
-cat > "$PROJECT_DIR/deploy/Dockerfile.backend" << 'DEPLOY_BE_EOF'
+    cat > "$PROJECT_DIR/deploy/Dockerfile.backend" << 'DEPLOY_BE_EOF'
 # Backend Dockerfile
 # 프로젝트 BE 스택에 맞게 수정하세요
 
@@ -386,7 +570,7 @@ EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 DEPLOY_BE_EOF
 
-cat > "$PROJECT_DIR/deploy/docker-compose.yml" << DEPLOY_COMPOSE_EOF
+    cat > "$PROJECT_DIR/deploy/docker-compose.yml" << DEPLOY_COMPOSE_EOF
 version: "3.8"
 
 services:
@@ -436,7 +620,7 @@ volumes:
   db_data:
 DEPLOY_COMPOSE_EOF
 
-cat > "$PROJECT_DIR/deploy/deploy-config.yml" << 'DEPLOY_CONFIG_EOF'
+    cat > "$PROJECT_DIR/deploy/deploy-config.yml" << 'DEPLOY_CONFIG_EOF'
 # 배포 설정 — Agent 08이 참조합니다
 # provider를 변경하여 배포 대상을 확장할 수 있습니다
 
@@ -464,10 +648,11 @@ rollback:
   escalate_after: 3  # 이 횟수 이후 사람에게 에스컬레이션
 DEPLOY_CONFIG_EOF
 
-echo "  → Dockerfile.frontend"
-echo "  → Dockerfile.backend"
-echo "  → docker-compose.yml"
-echo "  → deploy-config.yml"
+    echo "  → Dockerfile.frontend"
+    echo "  → Dockerfile.backend"
+    echo "  → docker-compose.yml"
+    echo "  → deploy-config.yml"
+fi
 
 # --- 완료 ---
 echo ""
@@ -480,14 +665,28 @@ echo "  Skills:      projects/$PROJECT_NAME/.claude/skills/"
 echo "  Commands:    projects/$PROJECT_NAME/.claude/commands/"
 echo "  Hooks:       projects/$PROJECT_NAME/.claude/hooks/"
 echo ""
-echo "  Included infrastructure:"
-echo "    Hooks:    skill-activation, post-tool-use-tracker, tsc-check, error-handling-reminder"
-echo "    Agents:   planner, auto-error-resolver, code-architecture-reviewer, frontend-error-fixer"
-echo "    Agents:   + pipeline agents (01~08)"
-echo "    Deploy:   Dockerfile.frontend, Dockerfile.backend, docker-compose.yml, deploy-config.yml"
-echo "    Commands: /dev-docs, /dev-docs-update, /pipeline-dashboard"
-echo "    Skills:   skill-developer, verify-implementation, manage-skills, visualization-notion"
-echo "    Rules:    skill-rules.json (with $FE_STACK + $BE_STACK rules injected)"
+if [ "$FULLSTACK_MODE" = true ]; then
+    echo "  Mode: Fullstack ($FE_STACK)"
+    echo "  App:  projects/$PROJECT_NAME/app/"
+    echo ""
+    echo "  Included infrastructure:"
+    echo "    Hooks:    skill-activation, post-tool-use-tracker, tsc-check, error-handling-reminder"
+    echo "    Agents:   planner, auto-error-resolver, code-architecture-reviewer, frontend-error-fixer"
+    echo "    Agents:   + pipeline agents (01~08)"
+    echo "    Deploy:   Dockerfile, docker-compose.yml, deploy-config.yml"
+    echo "    Commands: /dev-docs, /dev-docs-update, /pipeline-dashboard"
+    echo "    Skills:   skill-developer, verify-implementation, manage-skills, visualization-notion"
+    echo "    Rules:    skill-rules.json (with $FE_STACK fullstack rules injected)"
+else
+    echo "  Included infrastructure:"
+    echo "    Hooks:    skill-activation, post-tool-use-tracker, tsc-check, error-handling-reminder"
+    echo "    Agents:   planner, auto-error-resolver, code-architecture-reviewer, frontend-error-fixer"
+    echo "    Agents:   + pipeline agents (01~08)"
+    echo "    Deploy:   Dockerfile.frontend, Dockerfile.backend, docker-compose.yml, deploy-config.yml"
+    echo "    Commands: /dev-docs, /dev-docs-update, /pipeline-dashboard"
+    echo "    Skills:   skill-developer, verify-implementation, manage-skills, visualization-notion"
+    echo "    Rules:    skill-rules.json (with $FE_STACK + $BE_STACK rules injected)"
+fi
 echo ""
 echo "  Next steps:"
 echo "    1. Edit projects/$PROJECT_NAME/CLAUDE.md to set GitHub owner and description"

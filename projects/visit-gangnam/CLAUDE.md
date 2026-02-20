@@ -1,0 +1,47 @@
+# visit-gangnam 프로젝트
+
+## Stack
+- mode: fullstack
+- stack: nextjs
+- orm: prisma
+- db: mysql
+
+## Stack Guidelines
+- Frontend: ../../pipeline/stacks/nextjs/frontend-guidelines.md
+- Fullstack: ../../pipeline/stacks/nextjs/fullstack-guidelines.md
+
+## Project Info
+- GitHub: owner/visit-gangnam
+- Description: visit-gangnam 프로젝트
+
+## 디렉토리 구조
+- `app/` — 풀스택 프로젝트 (nextjs + Prisma + MySQL)
+  - `app/src/app/` — App Router 페이지 + API Routes
+  - `app/src/components/` — 컴포넌트
+  - `app/src/lib/` — 유틸리티 + Prisma 클라이언트
+  - `app/src/actions/` — Server Actions
+  - `app/prisma/` — DB 스키마 + 마이그레이션
+- `deploy/` — 배포 설정 (Agent 08)
+- `docs/` — Agent가 생성하는 문서
+  - `docs/errors/` — 에러 문서 (Agent 06)
+  - `docs/qa-logs/` — QA 성공 로그 (Agent 07)
+  - `docs/deploy-logs/` — 배포 로그 (Agent 08)
+  - `docs/pipeline-logs/` — 파이프라인 개선 로그
+
+## Notion 통합 (선택적)
+- PIPELINE_LOG Page ID: (루트 CLAUDE.md에서 상속)
+- Pipeline Runs DB ID: (루트 CLAUDE.md에서 상속)
+
+## 파이프라인 실행
+
+이 프로젝트는 루트 CLAUDE.md의 파이프라인을 따릅니다.
+풀스택 모드에서는 Agent 03 (FE)이 전체 앱을 담당합니다.
+
+```
+Phase 1 · Agent 01 → 문서 작성 (docs/)
+Phase 2 · Agent 02 → GitHub 이슈 생성
+Phase 3 · Agent 03 → 풀스택 개발 (FE + API + DB)
+Phase 4 · Agent 05 → QA (E2E 테스트)
+Phase 5 · Agent 06/07 → 로그 문서화
+Phase 6 · Agent 08 → 배포 (Staging 자동 + Production 승인)
+```

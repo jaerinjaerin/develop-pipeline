@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  icon      String
+  spots     Spot[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("categories")
+}
+
+model Spot {
+  id           Int          @id @default(autoincrement())
+  name         String
+  slug         String       @unique
+  description  String
+  content      String?      @db.LongText
+  address      String
+  phone        String?
+  website      String?
+  openingHours String?
+  priceRange   String?
+  imageUrl     String?
+  mapUrl       String?
+  isHotPlace   Boolean      @default(false)
+  timeSlot     String?
+  categoryId   Int
+  category     Category     @relation(fields: [categoryId], references: [id])
+  courseSpots   CourseSpot[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([categoryId])
+  @@index([isHotPlace])
+  @@index([timeSlot])
+  @@map("spots")
+}
+
+model Course {
+  id          Int          @id @default(autoincrement())
+  name        String
+  slug        String       @unique
+  description String
+  content     String?      @db.LongText
+  imageUrl    String?
+  spotCount   Int          @default(0)
+  duration    String?
+  order       Int          @default(0)
+  courseSpots  CourseSpot[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("courses")
+}
+
+model CourseSpot {
+  id         Int    @id @default(autoincrement())
+  courseId   Int
+  spotId     Int
+  order      Int    @default(0)
+  travelTime String?
+  course     Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  spot       Spot   @relation(fields: [spotId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, spotId])
+  @@index([courseId])
+  @@index([spotId])
+  @@map("course_spots")
+}
+
+model Festival {
+  id          Int      @id @default(autoincrement())
+  name        String
+  slug        String   @unique
+  description String
+  content     String?  @db.LongText
+  imageUrl    String?
+  startDate   DateTime @db.Date
+  endDate     DateTime @db.Date
+  venue       String?
+  isFeatured  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isFeatured])
+  @@index([startDate])
+  @@map("festivals")
+}
+
+model Influencer {
+  id          Int              @id @default(autoincrement())
+  name        String
+  handle      String
+  followers   String
+  avatarUrl   String?
+  quote       String           @db.Text
+  description String?          @db.Text
+  imageUrl    String?
+  order       Int              @default(0)
+  tags        InfluencerTag[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("influencers")
+}
+
+model InfluencerTag {
+  id           Int        @id @default(autoincrement())
+  name         String
+  influencerId Int
+  influencer   Influencer @relation(fields: [influencerId], references: [id], onDelete: Cascade)
+
+  @@index([influencerId])
+  @@map("influencer_tags")
+}
+
+model GalleryItem {
+  id        Int      @id @default(autoincrement())
+  type      String
+  imageUrl  String
+  videoUrl  String?
+  gridClass String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gallery_items")
+}

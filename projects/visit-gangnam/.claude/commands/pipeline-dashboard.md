@@ -1,0 +1,1 @@
+../../../../pipeline/commands/pipeline-dashboard.md
