@@ -1,1 +1,0 @@
-../../../../pipeline/skills/doc_format.md

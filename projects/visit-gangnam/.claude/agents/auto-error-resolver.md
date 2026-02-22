@@ -1,1 +1,0 @@
-../../../../pipeline/agents/auto-error-resolver.md

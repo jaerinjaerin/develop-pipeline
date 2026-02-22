@@ -1,1 +1,0 @@
-../../../../pipeline/skills/pipeline_improvement_log.md

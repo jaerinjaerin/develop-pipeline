@@ -1,1 +1,0 @@
-../../../../pipeline/agents/01_doc_writer.md

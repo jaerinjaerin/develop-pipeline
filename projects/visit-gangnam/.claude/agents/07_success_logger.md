@@ -1,1 +1,0 @@
-../../../../pipeline/agents/07_success_logger.md

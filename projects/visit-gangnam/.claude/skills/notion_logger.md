@@ -1,1 +1,0 @@
-../../../../pipeline/skills/notion_logger.md

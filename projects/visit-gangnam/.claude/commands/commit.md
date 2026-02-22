@@ -1,1 +1,0 @@
-../../../../pipeline/commands/commit.md

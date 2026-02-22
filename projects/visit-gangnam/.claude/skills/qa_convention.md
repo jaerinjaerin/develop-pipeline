@@ -1,1 +1,0 @@
-../../../../pipeline/skills/qa_convention.md
