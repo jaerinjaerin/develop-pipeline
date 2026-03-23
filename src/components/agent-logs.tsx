@@ -9,7 +9,7 @@ interface AgentLogsProps {
 }
 
 export function AgentLogs({ activities }: AgentLogsProps) {
-  const activeAgentIds = [...new Set(activities.map((a) => a.agentId))];
+  const activeAgentIds = Array.from(new Set(activities.map((a) => a.agentId)));
   const tabOrder = AGENTS.filter((a) => activeAgentIds.includes(a.id));
   // Always show system as first tab option if it has activities
   const allTabs = activeAgentIds.includes("system")
