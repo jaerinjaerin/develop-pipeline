@@ -27,3 +27,26 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #4b5563;
 }
+
+.writing-mode-vertical {
+  writing-mode: vertical-lr;
+}
+
+/* Prose overrides for dark theme */
+.prose-invert {
+  --tw-prose-headings: #a5b4fc;
+  --tw-prose-links: #8b5cf6;
+  --tw-prose-bold: #f3f4f6;
+  --tw-prose-code: #a5b4fc;
+}
+
+.prose table {
+  border-collapse: collapse;
+}
+.prose th, .prose td {
+  border: 1px solid #374151;
+  padding: 6px 12px;
+}
+.prose th {
+  background: #1f2937;
+}
