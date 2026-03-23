@@ -83,8 +83,8 @@ export class PipelineWatcher {
 
   stop() {
     this.dirWatcher?.close();
-    for (const [id] of this.watchers) {
+    this.watchers.forEach((_, id) => {
       this.unwatchPipeline(id);
-    }
+    });
   }
 }

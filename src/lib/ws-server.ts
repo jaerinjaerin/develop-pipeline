@@ -46,11 +46,11 @@ export function createWSServer(server: Server) {
 
   function broadcast(msg: ServerMessage, filter: (c: ClientState) => boolean) {
     const data = JSON.stringify(msg);
-    for (const [, client] of clients) {
+    clients.forEach((client) => {
       if (client.ws.readyState === WebSocket.OPEN && filter(client)) {
         client.ws.send(data);
       }
-    }
+    });
   }
 
   function broadcastToAll(msg: ServerMessage) {
