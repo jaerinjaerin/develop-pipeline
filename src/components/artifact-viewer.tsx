@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import ReactMarkdown from "react-markdown";
+import dynamic from "next/dynamic";
 import remarkGfm from "remark-gfm";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import type { OutputEntry } from "@/types/pipeline";
-import { PHASE_NAMES } from "@/lib/agents";
+
+const ReactMarkdown = dynamic(() => import("react-markdown").then((mod) => mod.default), {
+  ssr: false,
+  loading: () => <div className="text-text-muted text-center py-10">Loading renderer...</div>,
+});
 
 interface ArtifactViewerProps {
   pipelineId: string;
@@ -113,37 +115,12 @@ export function ArtifactViewer({ pipelineId, outputs, selected, onSelect, onClos
               />
             ) : isMarkdown && viewMode === "rendered" ? (
               <div className="prose prose-invert prose-sm max-w-none">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    code({ className, children, ...props }) {
-                      const match = /language-(\w+)/.exec(className || "");
-                      const inline = !match;
-                      return inline ? (
-                        <code className="bg-panel px-1 py-0.5 rounded text-accent-purple-light" {...props}>
-                          {children}
-                        </code>
-                      ) : (
-                        <SyntaxHighlighter
-                          style={oneDark}
-                          language={match[1]}
-                          PreTag="div"
-                        >
-                          {String(children).replace(/\n$/, "")}
-                        </SyntaxHighlighter>
-                      );
-                    },
-                  }}
-                />
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
               </div>
+            ) : isMarkdown && viewMode === "raw" ? (
+              <pre className="text-text-primary text-xs whitespace-pre-wrap font-[family-name:var(--font-geist-mono)]">{content}</pre>
             ) : (
-              <SyntaxHighlighter
-                style={oneDark}
-                language={isMarkdown ? "markdown" : ext}
-                showLineNumbers
-              >
-                {content}
-              </SyntaxHighlighter>
+              <pre className="text-text-primary text-xs whitespace-pre-wrap font-[family-name:var(--font-geist-mono)]">{content}</pre>
             )}
           </div>
         </div>
