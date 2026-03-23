@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{PLAN_TITLE}} — 기획안</title>
+  <style>
+    :root {
+      --bg: #f8f9fa;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text: #1a202c;
+      --text-muted: #718096;
+      --primary: #3182ce;
+      --primary-light: #ebf8ff;
+      --sidebar-width: 240px;
+      --p0: #e53e3e;
+      --p1: #dd6b20;
+      --p2: #38a169;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: var(--sidebar-width);
+      height: 100vh;
+      background: var(--card-bg);
+      border-right: 1px solid var(--border);
+      padding: 24px 16px;
+      overflow-y: auto;
+      z-index: 10;
+    }
+
+    .sidebar h2 {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .sidebar nav a {
+      display: block;
+      padding: 8px 12px;
+      margin-bottom: 4px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 14px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+
+    .sidebar nav a:hover,
+    .sidebar nav a.active {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    /* Main */
+    .main {
+      margin-left: var(--sidebar-width);
+      padding: 40px 48px;
+      max-width: 960px;
+    }
+
+    .main h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .main .subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+
+    /* Section cards */
+    section {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px 32px;
+      margin-bottom: 24px;
+    }
+
+    section h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--primary);
+      color: var(--primary);
+    }
+
+    section h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 16px 0 8px;
+    }
+
+    section p {
+      margin-bottom: 12px;
+    }
+
+    section ul, section ol {
+      margin: 8px 0 12px 20px;
+    }
+
+    section li {
+      margin-bottom: 4px;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 14px;
+    }
+
+    thead th {
+      background: var(--bg);
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+
+    tbody td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    tbody tr:hover {
+      background: #f7fafc;
+    }
+
+    /* ID badges */
+    code {
+      background: var(--primary-light);
+      color: var(--primary);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+
+    /* Priority badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .badge-p0 { background: var(--p0); }
+    .badge-p1 { background: var(--p1); }
+    .badge-p2 { background: var(--p2); }
+
+    /* Method badges */
+    .method {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: monospace;
+    }
+    .method-get { background: #c6f6d5; color: #22543d; }
+    .method-post { background: #fefcbf; color: #744210; }
+    .method-put { background: #bee3f8; color: #2a4365; }
+    .method-patch { background: #e9d8fd; color: #44337a; }
+    .method-delete { background: #fed7d7; color: #742a2a; }
+
+    /* Auth badge */
+    .auth-y { color: var(--p0); font-weight: 600; }
+    .auth-n { color: var(--text-muted); }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 20px 16px; }
+    }
+
+    /* Print */
+    @media print {
+      .sidebar { display: none; }
+      .main { margin-left: 0; max-width: 100%; }
+      section { break-inside: avoid; border: 1px solid #ccc; }
+    }
+  </style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <h2>목차</h2>
+  <nav>
+    <a href="#sec-1">1. 개요</a>
+    <a href="#sec-2">2. 유저 스토리</a>
+    <a href="#sec-3">3. 기능 명세</a>
+    <a href="#sec-4">4. 화면 목록</a>
+    <a href="#sec-5">5. API 초안</a>
+    <a href="#sec-6">6. 엣지케이스</a>
+    <a href="#sec-7">7. 비기능 요구사항</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <h1>{{PLAN_TITLE}}</h1>
+  <p class="subtitle">기획안 · 생성일: <span id="gen-date"></span></p>
+
+  {{PLAN_CONTENT}}
+</main>
+
+<script>
+  document.getElementById('gen-date').textContent = new Date().toLocaleDateString('ko-KR');
+
+  // Sidebar active state on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.sidebar nav a');
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(link => link.classList.remove('active'));
+        const active = document.querySelector(`.sidebar nav a[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -60% 0px' });
+
+  sections.forEach(sec => observer.observe(sec));
+</script>
+
+</body>
+</html>

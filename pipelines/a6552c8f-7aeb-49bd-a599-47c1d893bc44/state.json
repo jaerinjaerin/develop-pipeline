@@ -1,0 +1,85 @@
+{
+  "id": "a6552c8f-7aeb-49bd-a599-47c1d893bc44",
+  "name": "Pipeline a6552c8f",
+  "status": "error",
+  "currentPhase": 0,
+  "agents": {
+    "alex": {
+      "id": "alex",
+      "status": "error",
+      "currentTask": "Process exited with code -2"
+    },
+    "mina": {
+      "id": "mina",
+      "status": "idle"
+    },
+    "lena": {
+      "id": "lena",
+      "status": "idle"
+    },
+    "jay": {
+      "id": "jay",
+      "status": "idle"
+    },
+    "sam": {
+      "id": "sam",
+      "status": "idle"
+    },
+    "dex": {
+      "id": "dex",
+      "status": "idle"
+    },
+    "eva": {
+      "id": "eva",
+      "status": "idle"
+    },
+    "rex": {
+      "id": "rex",
+      "status": "idle"
+    },
+    "nora": {
+      "id": "nora",
+      "status": "idle"
+    }
+  },
+  "outputs": [],
+  "activities": [
+    {
+      "id": "b704a91d-72d6-4ffc-a507-17e9935b21bc",
+      "agentId": "system",
+      "message": "Pipeline created. Requirements received.",
+      "timestamp": "2026-03-23T06:53:52.531Z",
+      "type": "info"
+    },
+    {
+      "id": "8feb3b00-e09a-493d-b065-982da5680ecb",
+      "agentId": "system",
+      "message": "Pipeline started. Beginning Phase 0.",
+      "timestamp": "2026-03-23T06:53:52.531Z",
+      "type": "info"
+    },
+    {
+      "id": "b4c1b406-e035-4ebf-b8ab-882985a457c8",
+      "agentId": "alex",
+      "message": "Starting Phase 0 task...",
+      "timestamp": "2026-03-23T06:53:52.531Z",
+      "type": "info"
+    },
+    {
+      "id": "7c390019-a2d1-4315-90ed-8d9f1a060c1b",
+      "agentId": "alex",
+      "message": "Error: spawn claude ENOENT",
+      "timestamp": "2026-03-23T06:53:52.541Z",
+      "type": "error"
+    },
+    {
+      "id": "ba33b837-4365-4028-abdc-5bacabec949c",
+      "agentId": "alex",
+      "message": "Error: Process exited with code -2",
+      "timestamp": "2026-03-23T06:53:52.552Z",
+      "type": "error"
+    }
+  ],
+  "requirements": "로그인 페이지 구현 \n\n1. 백엔드 로직은 제외 \n2. 디자인과 프론트만 구현 \n3. 로그인 페이지의 라우터는 '/login'",
+  "createdAt": "2026-03-23T06:53:52.530Z"
+}
