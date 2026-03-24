@@ -56,9 +56,12 @@ export async function POST(request: Request) {
 
     // Spawn pipeline-runner (wrapper that manages Claude CLI + state)
     try {
+      // process.cwd() = .claude-pipeline/dashboard/
+      // ..    = .claude-pipeline/
+      // ../.. = project root
+      const projectRoot = path.resolve(process.cwd(), "..", "..");
       const runnerScript = path.resolve(
-        process.cwd(),
-        "..",
+        projectRoot,
         ".claude-pipeline",
         "runner",
         "dist",
@@ -66,7 +69,7 @@ export async function POST(request: Request) {
       );
 
       const child = spawn("node", [runnerScript], {
-        cwd: path.resolve(process.cwd(), ".."),
+        cwd: projectRoot,
         detached: true,
         stdio: "ignore",
         env: {

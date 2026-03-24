@@ -2,8 +2,9 @@ import fs from "fs";
 import path from "path";
 import type { PipelineState, PipelineSummary } from "@/types/pipeline";
 
+// process.cwd() = .claude-pipeline/dashboard/ → ../.. = project root
 const PIPELINES_DIR = process.env.PIPELINES_DIR
-  || path.resolve(process.cwd(), "..", "pipelines");
+  || path.resolve(process.cwd(), "..", "..", "pipelines");
 
 export function getPipelinesDir(): string {
   return path.resolve(PIPELINES_DIR);
