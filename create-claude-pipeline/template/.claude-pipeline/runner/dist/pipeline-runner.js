@@ -1,7 +1,7 @@
 import { spawn, execSync } from "child_process";
 import path from "path";
+import fs from "fs";
 import { StateManager } from "./state-manager.js";
-import { SignalWatcher } from "./signal-watcher.js";
 import { ContextWatcher } from "./context-watcher.js";
 import { waitForCheckpoint } from "./checkpoint-waiter.js";
 const PIPELINE_ID = process.env.PIPELINE_ID;
@@ -16,8 +16,8 @@ if (!REQUIREMENTS) {
     process.exit(1);
 }
 const projectRoot = path.resolve(PIPELINES_DIR, "..");
-const abortController = new AbortController();
-// ── Pre-check: Claude CLI availability ──────────────────────────────
+const contextDir = path.join(PIPELINES_DIR, PIPELINE_ID, "context");
+// ── Pre-check ───────────────────────────────────────────────────────
 function checkClaudeCLI() {
     try {
         execSync("claude --version", { timeout: 10000, stdio: "pipe" });
@@ -27,202 +27,315 @@ function checkClaudeCLI() {
         return false;
     }
 }
-// ── Build the prompt for Claude ─────────────────────────────────────
-function buildPrompt(requirements, pipelineId) {
+// ── Run a single Claude -p call and return stdout ───────────────────
+function runClaude(prompt) {
+    return new Promise((resolve) => {
+        const child = spawn("claude", ["-p", prompt], {
+            cwd: projectRoot,
+            stdio: ["ignore", "pipe", "pipe"],
+            env: { ...process.env, PIPELINE_ID: PIPELINE_ID },
+        });
+        let stdout = "";
+        let stderr = "";
+        child.stdout.on("data", (data) => {
+            const text = data.toString();
+            stdout += text;
+            // Print lines as they come
+            for (const line of text.split("\n")) {
+                if (line.trim())
+                    console.log(`[Claude] ${line}`);
+            }
+        });
+        child.stderr.on("data", (data) => {
+            stderr += data.toString();
+        });
+        child.on("close", (code) => {
+            if (stderr.trim())
+                console.error(`[Claude:err] ${stderr.trim()}`);
+            resolve({ stdout, code: code ?? 1 });
+        });
+        child.on("error", () => {
+            resolve({ stdout, code: 1 });
+        });
+    });
+}
+// ── Read context file if it exists ──────────────────────────────────
+function readContextFile(filename) {
+    const filePath = path.join(contextDir, filename);
+    try {
+        return fs.readFileSync(filePath, "utf-8");
+    }
+    catch {
+        return null;
+    }
+}
+// ── List existing context files ─────────────────────────────────────
+function listContextFiles() {
+    try {
+        return fs.readdirSync(contextDir).sort();
+    }
+    catch {
+        return [];
+    }
+}
+// ── Build phase-specific prompts ────────────────────────────────────
+const COMMON_INSTRUCTIONS = [
+    `PIPELINE_ID: ${PIPELINE_ID}`,
+    "",
+    "모든 산출물은 반드시 아래 경로에 저장:",
+    `  pipelines/${PIPELINE_ID}/context/`,
+    "",
+    "예시:",
+    `  pipelines/${PIPELINE_ID}/context/00_requirements.md`,
+    `  pipelines/${PIPELINE_ID}/context/01_plan.md`,
+    "",
+    "절대 프로젝트 루트의 context/ 폴더에 파일을 만들지 마세요.",
+    'CLAUDE.md의 파이프라인 가이드를 따르세요.',
+].join("\n");
+function buildPhase0Prompt() {
     return [
-        "다음 요구사항을 파이프라인으로 처리해주세요.",
+        "## PHASE 0: 인풋 수신",
         "",
-        `PIPELINE_ID: ${pipelineId}`,
+        "아래 요구사항을 분석해서 PM(Alex)으로서 작업 범위를 파악해주세요.",
         "",
         "요구사항:",
-        requirements,
+        REQUIREMENTS,
         "",
-        "중요: 이 세션은 파이프라인 대시보드에서 실행됩니다.",
-        'CLAUDE.md의 "Pipeline Dashboard Integration" 섹션을 반드시 따르세요.',
+        "수행할 작업:",
+        "1. 신규 기능인지 기존 기능 수정인지 판단",
+        "2. 영향 범위 파악 (FE / BE / Infra / 전체)",
+        "3. 필요한 Agent 역할 목록 결정",
+        "4. 예상 작업 순서 설계",
         "",
-        "특히 context 파일 경로에 주의하세요:",
-        `- 모든 산출물(context 파일)은 pipelines/${pipelineId}/context/ 에 생성`,
-        `- 시그널 파일은 pipelines/${pipelineId}/signals/ 에 생성`,
-        `- 예: pipelines/${pipelineId}/context/00_requirements.md`,
-        `- 예: pipelines/${pipelineId}/context/01_plan.md`,
+        `결과를 pipelines/${PIPELINE_ID}/context/00_requirements.md 에 저장해주세요.`,
         "",
-        "절대 프로젝트 루트의 context/ 폴더에 파일을 만들지 마세요.",
+        COMMON_INSTRUCTIONS,
     ].join("\n");
 }
+function buildPhase1Prompt() {
+    const requirements = readContextFile("00_requirements.md") || REQUIREMENTS;
+    return [
+        "## PHASE 1: 기획",
+        "",
+        "기획자(Mina)로서 아래 요구사항을 바탕으로 기획안을 작성해주세요.",
+        "",
+        "=== 요구사항 ===",
+        requirements,
+        "=== 끝 ===",
+        "",
+        "기획안에 포함할 내용:",
+        "1. 개요 (목적, 핵심 가치, 작업 범위)",
+        "2. 유저 스토리",
+        "3. 기능 명세 (표 형식)",
+        "4. 화면 목록 (표 형식)",
+        "5. API 초안 (Method / Path / 설명 / 인증 여부)",
+        "6. 엣지케이스 & 예외 처리",
+        "7. 비기능 요구사항",
+        "",
+        `결과를 pipelines/${PIPELINE_ID}/context/01_plan.md 에 저장해주세요.`,
+        "",
+        COMMON_INSTRUCTIONS,
+    ].join("\n");
+}
+function buildPhase2Prompt() {
+    const requirements = readContextFile("00_requirements.md") || REQUIREMENTS;
+    const plan = readContextFile("01_plan.md") || "";
+    return [
+        "## PHASE 2: 설계",
+        "",
+        "디자이너(Lena)와 BE 설계자(Sam)로서 설계를 수행해주세요.",
+        "",
+        "=== 요구사항 ===",
+        requirements,
+        "=== 기획안 ===",
+        plan,
+        "=== 끝 ===",
+        "",
+        "디자이너 산출물 (02_design_spec.md):",
+        "- 디자인 토큰, 공통 컴포넌트, 화면별 레이아웃, 인터랙션, 접근성",
+        "",
+        "BE 설계 산출물 (03_api_spec.md + 03_erd.md):",
+        "- ERD, API 명세 상세, 인증/권한 설계",
+        "",
+        `모든 파일을 pipelines/${PIPELINE_ID}/context/ 에 저장해주세요.`,
+        "",
+        COMMON_INSTRUCTIONS,
+    ].join("\n");
+}
+function buildPhase3Prompt() {
+    const contextFiles = listContextFiles();
+    let contextSummary = "";
+    for (const file of contextFiles) {
+        const content = readContextFile(file);
+        if (content) {
+            contextSummary += `\n=== ${file} ===\n${content}\n`;
+        }
+    }
+    return [
+        "## PHASE 3: 구현",
+        "",
+        "FE(Jay), BE(Sam), Infra(Dex)로서 구현을 수행해주세요.",
+        "",
+        "지금까지의 산출물:",
+        contextSummary,
+        "=== 끝 ===",
+        "",
+        "기획안과 설계 명세를 바탕으로 코드를 구현해주세요.",
+        "각 Agent는 자신의 담당 파일만 수정합니다.",
+        "",
+        COMMON_INSTRUCTIONS,
+    ].join("\n");
+}
+function buildPhase4Prompt() {
+    const contextFiles = listContextFiles();
+    let contextSummary = "";
+    for (const file of contextFiles) {
+        const content = readContextFile(file);
+        if (content) {
+            contextSummary += `\n=== ${file} ===\n${content}\n`;
+        }
+    }
+    return [
+        "## PHASE 4: QA + 통합",
+        "",
+        "QA(Eva), 보안 리뷰어(Rex), 코드 리뷰어(Nora)로서 검증을 수행해주세요.",
+        "",
+        "지금까지의 산출물:",
+        contextSummary,
+        "=== 끝 ===",
+        "",
+        "산출물:",
+        `- pipelines/${PIPELINE_ID}/context/qa_report.md`,
+        `- pipelines/${PIPELINE_ID}/context/security_report.md`,
+        "",
+        COMMON_INSTRUCTIONS,
+    ].join("\n");
+}
+const PHASES = [
+    {
+        phase: 0,
+        name: "인풋 수신",
+        buildPrompt: buildPhase0Prompt,
+        expectedFiles: ["00_requirements.md"],
+        checkpoint: "요구사항 분석 결과를 확인해주세요.",
+    },
+    {
+        phase: 1,
+        name: "기획",
+        buildPrompt: buildPhase1Prompt,
+        expectedFiles: ["01_plan.md"],
+        checkpoint: "기획안을 검토해주세요.",
+    },
+    {
+        phase: 2,
+        name: "설계",
+        buildPrompt: buildPhase2Prompt,
+        expectedFiles: ["02_design_spec.md", "03_api_spec.md"],
+        checkpoint: "디자인 명세 + API 명세를 검토해주세요.",
+    },
+    {
+        phase: 3,
+        name: "구현",
+        buildPrompt: buildPhase3Prompt,
+        expectedFiles: [],
+        checkpoint: "구현 결과를 확인해주세요.",
+    },
+    {
+        phase: 4,
+        name: "QA + 통합",
+        buildPrompt: buildPhase4Prompt,
+        expectedFiles: ["qa_report.md", "security_report.md"],
+        checkpoint: "QA 보고서 + 보안 보고서를 확인해주세요.",
+    },
+];
 // ── Main ────────────────────────────────────────────────────────────
 async function main() {
     const stateManager = new StateManager(PIPELINES_DIR, PIPELINE_ID);
-    // Verify state.json exists (created by dashboard)
     const initialState = stateManager.read();
     if (!initialState) {
         console.error(`state.json not found for pipeline ${PIPELINE_ID}`);
         process.exit(1);
     }
-    // Pre-check Claude CLI
     if (!checkClaudeCLI()) {
         stateManager.setStatus("failed");
-        stateManager.addActivity("system", "error", "Claude CLI를 찾을 수 없거나 로그인되어 있지 않습니다. `claude --version`을 확인해주세요.");
+        stateManager.addActivity("system", "error", "Claude CLI를 찾을 수 없거나 로그인되어 있지 않습니다.");
         process.exit(1);
     }
-    // Start watchers
-    const signalWatcher = new SignalWatcher(stateManager, PIPELINES_DIR, PIPELINE_ID);
+    // Ensure context directory exists
+    fs.mkdirSync(contextDir, { recursive: true });
+    // Start context watcher (fallback: copies root context/ to pipeline context/)
     const contextWatcher = new ContextWatcher(stateManager, PIPELINES_DIR, PIPELINE_ID);
-    // Wire up: notify contextWatcher when signals are processed
-    signalWatcher.on("phase", () => contextWatcher.notifySignalProcessed());
-    signalWatcher.on("checkpoint", () => contextWatcher.notifySignalProcessed());
-    signalWatcher.start(500);
     contextWatcher.start();
     stateManager.setStatus("running");
     stateManager.addActivity("system", "info", "파이프라인 시작");
-    // ── Spawn Claude CLI ──────────────────────────────────────────────
-    const prompt = buildPrompt(REQUIREMENTS, PIPELINE_ID);
-    const claude = spawn("claude", ["-p", prompt, "--verbose"], {
-        cwd: projectRoot,
-        stdio: ["ignore", "pipe", "pipe"],
-        env: { ...process.env, PIPELINE_ID: PIPELINE_ID },
-    });
-    // ── Handle checkpoint events ──────────────────────────────────────
-    signalWatcher.on("checkpoint", async (phase, description) => {
-        console.log(`[Runner] Checkpoint Phase ${phase}: ${description}`);
+    // ── Run phases sequentially ─────────────────────────────────────
+    for (const phaseConfig of PHASES) {
+        const { phase, name, buildPrompt, expectedFiles, checkpoint } = phaseConfig;
+        console.log(`\n[Runner] ── Phase ${phase}: ${name} ──`);
+        stateManager.setPhase(phase);
+        stateManager.addActivity("system", "info", `Phase ${phase} 시작: ${name}`);
+        // Build and run prompt
+        const prompt = buildPrompt();
+        const result = await runClaude(prompt);
+        if (result.code !== 0) {
+            stateManager.setStatus("failed");
+            stateManager.addActivity("system", "error", `Phase ${phase} 실패 (exit code: ${result.code})`);
+            break;
+        }
+        // Log Claude's output as activity (truncated)
+        const summary = result.stdout.trim().slice(0, 200);
+        if (summary) {
+            stateManager.addActivity("system", "progress", summary + (result.stdout.length > 200 ? "..." : ""));
+        }
+        // Register output files
+        for (const file of expectedFiles) {
+            if (fs.existsSync(path.join(contextDir, file))) {
+                stateManager.addOutput(`context/${file}`, phase);
+                stateManager.addActivity("system", "success", `산출물 생성: ${file}`);
+            }
+        }
+        // Also register any unexpected context files
+        for (const file of listContextFiles()) {
+            const existing = stateManager.read();
+            if (existing && !existing.outputs.some((o) => o.filename === `context/${file}`)) {
+                const filePhase = phase;
+                stateManager.addOutput(`context/${file}`, filePhase);
+            }
+        }
+        // ── Checkpoint: wait for user approval ──────────────────────
+        stateManager.addActivity("system", "info", `Checkpoint Phase ${phase}: ${checkpoint}`);
         stateManager.setStatus("paused");
+        console.log(`[Runner] Checkpoint Phase ${phase}: waiting for approval...`);
         try {
-            const response = await waitForCheckpoint(PIPELINES_DIR, PIPELINE_ID, abortController.signal);
+            const response = await waitForCheckpoint(PIPELINES_DIR, PIPELINE_ID);
             if (response.action === "approve") {
                 stateManager.addActivity("system", "success", `Checkpoint Phase ${phase} approved`);
+                stateManager.setStatus("running");
+                console.log(`[Runner] Phase ${phase} approved`);
             }
             else {
-                const feedback = response.message || "사용자가 수정을 요청했습니다.";
+                const feedback = response.message || "수정 요청";
                 stateManager.addActivity("system", "info", `Checkpoint Phase ${phase} rejected: ${feedback}`);
-            }
-            // Note: Claude runs in -p (print) mode with stdin ignored.
-            // Checkpoint responses are recorded in state.json activities.
-            // Claude reads checkpoint_response.json via signal protocol.
-            stateManager.setStatus("running");
-        }
-        catch (err) {
-            if (err.message !== "Aborted") {
-                console.error("[Runner] Checkpoint wait error:", err);
-            }
-        }
-    });
-    // ── Stream stdout/stderr → parse for activity logging ─────────────
-    // Even if Claude doesn't write signal files, we extract progress
-    // from stdout to keep the dashboard alive with activity updates.
-    const AGENT_KEYWORDS = {
-        "PM": "alex", "Alex": "alex",
-        "기획": "mina", "Mina": "mina",
-        "디자이너": "lena", "Lena": "lena", "디자인": "lena",
-        "FE": "jay", "Jay": "jay", "프론트": "jay",
-        "BE": "sam", "Sam": "sam", "백엔드": "sam",
-        "인프라": "dex", "Dex": "dex", "Infra": "dex", "Docker": "dex",
-        "QA": "eva", "Eva": "eva", "테스트": "eva",
-        "보안": "rex", "Rex": "rex", "Security": "rex",
-        "리뷰": "nora", "Nora": "nora", "코드 리뷰": "nora",
-    };
-    const PHASE_PATTERNS = [
-        { pattern: /PHASE\s*0|인풋\s*수신|요구사항\s*분석/i, phase: 0 },
-        { pattern: /PHASE\s*1|기획|plan/i, phase: 1 },
-        { pattern: /PHASE\s*2|설계|design|API\s*명세/i, phase: 2 },
-        { pattern: /PHASE\s*3|구현|implement/i, phase: 3 },
-        { pattern: /PHASE\s*4|QA|통합|보안\s*리뷰/i, phase: 4 },
-    ];
-    let lastActivityTime = 0;
-    const ACTIVITY_THROTTLE_MS = 3000; // Don't spam: max 1 activity per 3s from stdout
-    function detectAgentFromLine(line) {
-        for (const [keyword, agentId] of Object.entries(AGENT_KEYWORDS)) {
-            if (line.includes(keyword))
-                return agentId;
-        }
-        return "system";
-    }
-    function processStdoutLine(line) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.length < 5)
-            return;
-        // Skip noisy lines (tool execution details, JSON, whitespace-heavy)
-        if (trimmed.startsWith("{") || trimmed.startsWith("[") || trimmed.startsWith("```"))
-            return;
-        if (/^[-=_]{3,}$/.test(trimmed))
-            return;
-        const now = Date.now();
-        // Phase detection (always process, no throttle)
-        for (const { pattern, phase } of PHASE_PATTERNS) {
-            if (pattern.test(trimmed)) {
-                const currentState = stateManager.read();
-                if (currentState && currentState.currentPhase < phase) {
-                    stateManager.setPhase(phase);
-                    stateManager.addActivity("system", "info", `Phase ${phase} 시작`);
-                    contextWatcher.notifySignalProcessed();
-                }
+                stateManager.setStatus("failed");
+                stateManager.addActivity("system", "error", `Phase ${phase}에서 사용자가 거절함`);
+                console.log(`[Runner] Phase ${phase} rejected: ${feedback}`);
                 break;
             }
         }
-        // Checkpoint detection from stdout
-        if (/체크포인트|checkpoint/i.test(trimmed) && /승인|확인|검토|approve|review/i.test(trimmed)) {
-            // Don't duplicate if signal-watcher already caught it
-            return;
-        }
-        // Throttled activity logging
-        if (now - lastActivityTime < ACTIVITY_THROTTLE_MS)
-            return;
-        lastActivityTime = now;
-        // Log meaningful lines as activities
-        const agentId = detectAgentFromLine(trimmed);
-        // Truncate long lines
-        const message = trimmed.length > 120 ? trimmed.slice(0, 117) + "..." : trimmed;
-        stateManager.addActivity(agentId, "progress", message);
-    }
-    let stdoutBuffer = "";
-    claude.stdout.on("data", (data) => {
-        stdoutBuffer += data.toString();
-        const lines = stdoutBuffer.split("\n");
-        stdoutBuffer = lines.pop() || "";
-        for (const line of lines) {
-            if (line.trim()) {
-                console.log(`[Claude] ${line}`);
-                processStdoutLine(line);
-            }
-        }
-    });
-    claude.stderr.on("data", (data) => {
-        const text = data.toString().trim();
-        if (text) {
-            console.error(`[Claude:err] ${text}`);
-        }
-    });
-    // ── Handle process exit ───────────────────────────────────────────
-    claude.on("close", (code) => {
-        console.log(`[Runner] Claude process exited with code ${code}`);
-        abortController.abort();
-        if (code === 0) {
-            stateManager.setStatus("completed");
-            stateManager.addActivity("system", "success", "파이프라인 완료");
-        }
-        else {
+        catch (err) {
+            console.error("[Runner] Checkpoint error:", err);
             stateManager.setStatus("failed");
-            stateManager.addActivity("system", "error", `Claude 프로세스가 비정상 종료되었습니다 (exit code: ${code})`);
+            break;
         }
-        signalWatcher.stop();
-        contextWatcher.stop();
-    });
-    claude.on("error", (err) => {
-        console.error("[Runner] Failed to spawn Claude:", err);
-        stateManager.setStatus("failed");
-        stateManager.addActivity("system", "error", `Claude 실행 실패: ${err.message}`);
-        signalWatcher.stop();
-        contextWatcher.stop();
-    });
-    // ── Graceful shutdown ─────────────────────────────────────────────
-    const cleanup = () => {
-        abortController.abort();
-        signalWatcher.stop();
-        contextWatcher.stop();
-        if (!claude.killed) {
-            claude.kill("SIGTERM");
-        }
-    };
-    process.on("SIGINT", cleanup);
-    process.on("SIGTERM", cleanup);
+    }
+    // ── Finalize ──────────────────────────────────────────────────
+    const finalState = stateManager.read();
+    if (finalState && finalState.status === "running") {
+        stateManager.setStatus("completed");
+        stateManager.addActivity("system", "success", "파이프라인 완료");
+    }
+    contextWatcher.stop();
+    console.log("[Runner] Pipeline finished");
 }
 main().catch((err) => {
     console.error("[Runner] Fatal error:", err);
