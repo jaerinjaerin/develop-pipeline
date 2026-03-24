@@ -13,7 +13,18 @@ interface ClientState {
 }
 
 export function createWSServer(server: Server) {
-  const wss = new WebSocketServer({ server, path: "/ws" });
+  // Use noServer mode to avoid hijacking ALL upgrade events.
+  // This lets Next.js HMR (/_next/webpack-hmr) work alongside our /ws.
+  const wss = new WebSocketServer({ noServer: true });
+
+  server.on("upgrade", (req, socket, head) => {
+    if (req.url === "/ws") {
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit("connection", ws, req);
+      });
+    }
+    // Other upgrade requests (e.g. /_next/webpack-hmr) pass through to Next.js
+  });
   const clients = new Map<WebSocket, ClientState>();
   const prevActivitiesCount = new Map<string, number>();
 
