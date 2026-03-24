@@ -16,9 +16,19 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   });
 
-  createWSServer(server);
+  try {
+    createWSServer(server);
+    console.log("> WebSocket server attached on /ws");
+  } catch (err) {
+    console.error("> Failed to create WebSocket server:", err);
+    console.error("> Dashboard will run without real-time updates");
+  }
 
   server.listen(port, () => {
     console.log(`> Ready on http://${hostname}:${port}`);
+    console.log(`> PIPELINES_DIR: ${process.env.PIPELINES_DIR || "(default: ../pipelines)"}`);
   });
+}).catch((err) => {
+  console.error("Failed to start dashboard:", err);
+  process.exit(1);
 });

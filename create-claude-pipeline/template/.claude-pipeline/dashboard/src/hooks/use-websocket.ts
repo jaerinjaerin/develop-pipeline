@@ -29,10 +29,14 @@ export function useWebSocket(onMessage: (msg: ServerMessage) => void, onReconnec
       }
     };
 
+    ws.onerror = () => {
+      // Suppress console noise — onclose handles reconnection
+    };
+
     ws.onclose = () => {
       setConnected(false);
       wsRef.current = null;
-      // Exponential backoff reconnection
+      // Exponential backoff reconnection (1s → 2s → 4s → ... → 30s max)
       const delay = reconnectDelay.current;
       reconnectDelay.current = Math.min(delay * 2, 30000);
       setTimeout(connect, delay);

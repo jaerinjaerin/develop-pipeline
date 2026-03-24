@@ -2,10 +2,8 @@ import fs from "fs";
 import path from "path";
 import type { PipelineState, PipelineSummary } from "@/types/pipeline";
 
-const PIPELINES_DIR = process.env.PIPELINES_DIR;
-if (!PIPELINES_DIR) {
-  throw new Error("PIPELINES_DIR 환경변수가 설정되지 않았습니다. npx create-claude-pipeline으로 실행해주세요.");
-}
+const PIPELINES_DIR = process.env.PIPELINES_DIR
+  || path.resolve(process.cwd(), "..", "pipelines");
 
 export function getPipelinesDir(): string {
   return path.resolve(PIPELINES_DIR);
