@@ -111,7 +111,7 @@ $ npx create-claude-pipeline
 
 ### CLAUDE.md 병합
 
-- 마커 주석 `<!-- claude-pipeline -->` 으로 파이프라인 섹션을 감싸서 중복 감지
+- 마커 주석 `<!-- claude-pipeline-start -->` / `<!-- claude-pipeline-end -->` 쌍으로 파이프라인 섹션을 감싸서 중복 감지
 - 기존 CLAUDE.md가 있으면: 파일 끝에 `---` 구분선 + 파이프라인 섹션 추가
 - 기존 CLAUDE.md에 이미 마커가 있으면: 건너뜀
 - 기존 CLAUDE.md가 없으면: 템플릿 파일 그대로 복사
@@ -135,6 +135,7 @@ $ npx create-claude-pipeline
 
 ```
 .claude-pipeline/dashboard/node_modules/
+.claude-pipeline/dashboard/.next/
 pipelines/
 ```
 
