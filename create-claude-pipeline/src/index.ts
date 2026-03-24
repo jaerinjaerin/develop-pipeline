@@ -13,7 +13,7 @@ const TOTAL_STEPS = 6;
 
 function showHelp(): void {
   console.log(`
-  Usage: npx create-claude-pipeline
+  Usage: npx create-claude-pipeline [options]
 
   Claude Code 파이프라인 시스템을 현재 디렉토리에 설치하고 대시보드를 실행합니다.
 
@@ -21,8 +21,9 @@ function showHelp(): void {
   재실행:   대시보드만 실행
 
   Options:
-    --help      이 도움말 표시
-    --version   버전 표시
+    --update, -u  파이프라인 시스템을 최신 버전으로 업데이트
+    --help        이 도움말 표시
+    --version     버전 표시
 `);
 }
 
@@ -51,12 +52,18 @@ async function main(): Promise<void> {
 
   const cwd = process.cwd();
   const dashboardPkg = path.join(cwd, ".claude-pipeline", "dashboard", "package.json");
+  const forceUpdate = args.includes("--update") || args.includes("-u");
 
   if (await fs.pathExists(dashboardPkg)) {
+    if (!forceUpdate) {
+      console.log();
+      log.success("이미 설치됨 — 대시보드만 실행합니다");
+      log.success("업데이트하려면: npx create-claude-pipeline --update");
+      await startDashboard(cwd);
+      return;
+    }
     console.log();
-    log.success("이미 설치됨 — 대시보드만 실행합니다");
-    await startDashboard(cwd);
-    return;
+    log.success("업데이트 모드 — 파일을 덮어쓰고 재설치합니다");
   }
 
   log.banner();

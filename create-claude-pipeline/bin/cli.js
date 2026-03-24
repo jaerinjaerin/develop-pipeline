@@ -275,7 +275,7 @@ async function startDashboard(targetDir) {
 var TOTAL_STEPS = 6;
 function showHelp() {
   console.log(`
-  Usage: npx create-claude-pipeline
+  Usage: npx create-claude-pipeline [options]
 
   Claude Code \uD30C\uC774\uD504\uB77C\uC778 \uC2DC\uC2A4\uD15C\uC744 \uD604\uC7AC \uB514\uB809\uD1A0\uB9AC\uC5D0 \uC124\uCE58\uD558\uACE0 \uB300\uC2DC\uBCF4\uB4DC\uB97C \uC2E4\uD589\uD569\uB2C8\uB2E4.
 
@@ -283,8 +283,9 @@ function showHelp() {
   \uC7AC\uC2E4\uD589:   \uB300\uC2DC\uBCF4\uB4DC\uB9CC \uC2E4\uD589
 
   Options:
-    --help      \uC774 \uB3C4\uC6C0\uB9D0 \uD45C\uC2DC
-    --version   \uBC84\uC804 \uD45C\uC2DC
+    --update, -u  \uD30C\uC774\uD504\uB77C\uC778 \uC2DC\uC2A4\uD15C\uC744 \uCD5C\uC2E0 \uBC84\uC804\uC73C\uB85C \uC5C5\uB370\uC774\uD2B8
+    --help        \uC774 \uB3C4\uC6C0\uB9D0 \uD45C\uC2DC
+    --version     \uBC84\uC804 \uD45C\uC2DC
 `);
 }
 async function showVersion() {
@@ -308,11 +309,17 @@ async function main() {
   }
   const cwd = process.cwd();
   const dashboardPkg = import_path7.default.join(cwd, ".claude-pipeline", "dashboard", "package.json");
+  const forceUpdate = args.includes("--update") || args.includes("-u");
   if (await import_fs_extra5.default.pathExists(dashboardPkg)) {
+    if (!forceUpdate) {
+      console.log();
+      success("\uC774\uBBF8 \uC124\uCE58\uB428 \u2014 \uB300\uC2DC\uBCF4\uB4DC\uB9CC \uC2E4\uD589\uD569\uB2C8\uB2E4");
+      success("\uC5C5\uB370\uC774\uD2B8\uD558\uB824\uBA74: npx create-claude-pipeline --update");
+      await startDashboard(cwd);
+      return;
+    }
     console.log();
-    success("\uC774\uBBF8 \uC124\uCE58\uB428 \u2014 \uB300\uC2DC\uBCF4\uB4DC\uB9CC \uC2E4\uD589\uD569\uB2C8\uB2E4");
-    await startDashboard(cwd);
-    return;
+    success("\uC5C5\uB370\uC774\uD2B8 \uBAA8\uB4DC \u2014 \uD30C\uC77C\uC744 \uB36E\uC5B4\uC4F0\uACE0 \uC7AC\uC124\uCE58\uD569\uB2C8\uB2E4");
   }
   banner();
   step(1, TOTAL_STEPS, "\uD30C\uC77C \uBCF5\uC0AC \uC911...");
