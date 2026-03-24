@@ -20,7 +20,7 @@ export function CheckpointBanner({ checkpoint, onRespond }: CheckpointBannerProp
           value={feedback}
           onChange={(e) => setFeedback(e.target.value)}
           className="w-full bg-[#111827] border border-border rounded-lg p-2 text-text-primary text-sm resize-none h-20 focus:outline-none focus:border-accent-purple"
-          placeholder="피드백을 입력하세요..."
+          placeholder="추가 지시사항을 입력하세요..."
           autoFocus
         />
         <div className="flex justify-end gap-2 mt-2">
@@ -29,9 +29,16 @@ export function CheckpointBanner({ checkpoint, onRespond }: CheckpointBannerProp
           </button>
           <button
             onClick={() => onRespond("reject", feedback)}
+            disabled={!feedback.trim()}
+            className="px-3 py-1 text-[11px] text-white bg-red-500/80 rounded-md disabled:opacity-50"
+          >
+            거절 + 재작업
+          </button>
+          <button
+            onClick={() => onRespond("approve", feedback)}
             className="px-3 py-1 text-[11px] text-white bg-gradient-to-r from-accent-purple to-accent-purple-light rounded-md"
           >
-            전송
+            피드백과 함께 승인
           </button>
         </div>
       </div>

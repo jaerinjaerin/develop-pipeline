@@ -268,64 +268,84 @@ async function main() {
     contextWatcher.start();
     stateManager.setStatus("running");
     stateManager.addActivity("system", "info", "파이프라인 시작");
+    let lastFeedback = "";
     // ── Run phases sequentially ─────────────────────────────────────
     for (const phaseConfig of PHASES) {
         const { phase, name, buildPrompt, expectedFiles, checkpoint } = phaseConfig;
-        console.log(`\n[Runner] ── Phase ${phase}: ${name} ──`);
-        stateManager.setPhase(phase);
-        stateManager.addActivity("system", "info", `Phase ${phase} 시작: ${name}`);
-        // Build and run prompt
-        const prompt = buildPrompt();
-        const result = await runClaude(prompt);
-        if (result.code !== 0) {
-            stateManager.setStatus("failed");
-            stateManager.addActivity("system", "error", `Phase ${phase} 실패 (exit code: ${result.code})`);
-            break;
-        }
-        // Log Claude's output as activity (truncated)
-        const summary = result.stdout.trim().slice(0, 200);
-        if (summary) {
-            stateManager.addActivity("system", "progress", summary + (result.stdout.length > 200 ? "..." : ""));
-        }
-        // Register output files
-        for (const file of expectedFiles) {
-            if (fs.existsSync(path.join(contextDir, file))) {
-                stateManager.addOutput(`context/${file}`, phase);
-                stateManager.addActivity("system", "success", `산출물 생성: ${file}`);
+        const MAX_RETRIES = 3;
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            const isRetry = attempt > 0;
+            console.log(`\n[Runner] ── Phase ${phase}: ${name}${isRetry ? ` (재시도 #${attempt})` : ""} ──`);
+            stateManager.setPhase(phase);
+            stateManager.setStatus("running");
+            if (!isRetry) {
+                stateManager.addActivity("system", "info", `Phase ${phase} 시작: ${name}`);
             }
-        }
-        // Also register any unexpected context files
-        for (const file of listContextFiles()) {
-            const existing = stateManager.read();
-            if (existing && !existing.outputs.some((o) => o.filename === `context/${file}`)) {
-                const filePhase = phase;
-                stateManager.addOutput(`context/${file}`, filePhase);
+            // Build prompt (on retry, append feedback)
+            let prompt = buildPrompt();
+            if (isRetry && lastFeedback) {
+                prompt += `\n\n## 사용자 피드백 (수정 요청)\n${lastFeedback}\n\n위 피드백을 반영하여 이 Phase를 다시 수행해주세요.`;
             }
-        }
-        // ── Checkpoint: wait for user approval ──────────────────────
-        stateManager.addActivity("system", "info", `Checkpoint Phase ${phase}: ${checkpoint}`);
-        stateManager.setStatus("paused");
-        console.log(`[Runner] Checkpoint Phase ${phase}: waiting for approval...`);
-        try {
-            const response = await waitForCheckpoint(PIPELINES_DIR, PIPELINE_ID);
-            if (response.action === "approve") {
-                stateManager.addActivity("system", "success", `Checkpoint Phase ${phase} approved`);
-                stateManager.setStatus("running");
-                console.log(`[Runner] Phase ${phase} approved`);
-            }
-            else {
-                const feedback = response.message || "수정 요청";
-                stateManager.addActivity("system", "info", `Checkpoint Phase ${phase} rejected: ${feedback}`);
+            const result = await runClaude(prompt);
+            if (result.code !== 0) {
                 stateManager.setStatus("failed");
-                stateManager.addActivity("system", "error", `Phase ${phase}에서 사용자가 거절함`);
-                console.log(`[Runner] Phase ${phase} rejected: ${feedback}`);
-                break;
+                stateManager.addActivity("system", "error", `Phase ${phase} 실패 (exit code: ${result.code})`);
+                contextWatcher.stop();
+                return;
             }
-        }
-        catch (err) {
-            console.error("[Runner] Checkpoint error:", err);
-            stateManager.setStatus("failed");
-            break;
+            // Log Claude's output as activity (truncated)
+            const summary = result.stdout.trim().slice(0, 200);
+            if (summary) {
+                stateManager.addActivity("system", "progress", summary + (result.stdout.length > 200 ? "..." : ""));
+            }
+            // Register output files
+            for (const file of expectedFiles) {
+                if (fs.existsSync(path.join(contextDir, file))) {
+                    stateManager.addOutput(`context/${file}`, phase);
+                    stateManager.addActivity("system", "success", `산출물 생성: ${file}`);
+                }
+            }
+            for (const file of listContextFiles()) {
+                const existing = stateManager.read();
+                if (existing && !existing.outputs.some((o) => o.filename === `context/${file}`)) {
+                    stateManager.addOutput(`context/${file}`, phase);
+                }
+            }
+            // ── Checkpoint: wait for user approval ──────────────────────
+            stateManager.addActivity("system", "info", `Checkpoint Phase ${phase}: ${checkpoint}`);
+            stateManager.setStatus("paused");
+            console.log(`[Runner] Checkpoint Phase ${phase}: waiting for approval...`);
+            try {
+                const response = await waitForCheckpoint(PIPELINES_DIR, PIPELINE_ID);
+                if (response.action === "approve") {
+                    const msg = response.message
+                        ? `Checkpoint Phase ${phase} approved (피드백: ${response.message})`
+                        : `Checkpoint Phase ${phase} approved`;
+                    stateManager.addActivity("system", "success", msg);
+                    console.log(`[Runner] Phase ${phase} approved`);
+                    lastFeedback = "";
+                    break; // Exit retry loop, proceed to next phase
+                }
+                else {
+                    // Reject → retry this phase with feedback
+                    lastFeedback = response.message || "수정 요청";
+                    stateManager.addActivity("system", "info", `Phase ${phase} 수정 요청: ${lastFeedback}`);
+                    console.log(`[Runner] Phase ${phase} revision requested: ${lastFeedback}`);
+                    if (attempt === MAX_RETRIES) {
+                        stateManager.setStatus("failed");
+                        stateManager.addActivity("system", "error", `Phase ${phase}: 최대 재시도 횟수(${MAX_RETRIES}) 초과`);
+                        contextWatcher.stop();
+                        return;
+                    }
+                    // Continue retry loop
+                }
+            }
+            catch (err) {
+                console.error("[Runner] Checkpoint error:", err);
+                stateManager.setStatus("failed");
+                contextWatcher.stop();
+                return;
+            }
         }
     }
     // ── Finalize ──────────────────────────────────────────────────
