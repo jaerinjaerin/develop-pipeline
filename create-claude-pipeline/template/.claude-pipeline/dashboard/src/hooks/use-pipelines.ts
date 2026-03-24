@@ -1,37 +1,32 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import type { PipelineSummary, ServerMessage } from "@/types/pipeline";
-import { useWebSocket } from "./use-websocket";
+import { useState, useCallback } from "react";
+import type { PipelineSummary, PipelineState } from "@/types/pipeline";
+import { useSSE } from "./use-sse";
 
 export function usePipelines() {
   const [pipelines, setPipelines] = useState<PipelineSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchPipelines = useCallback(async () => {
-    try {
-      const res = await fetch("/api/pipelines");
-      const data = await res.json();
-      setPipelines(data.pipelines);
-    } catch {
-      // Ignore fetch errors
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const handleEvent = useCallback((event: string, data: unknown) => {
+    const d = data as Record<string, unknown>;
 
-  const handleMessage = useCallback((msg: ServerMessage) => {
-    if (msg.type === "pipeline:updated") {
+    if (event === "pipeline:init") {
+      const list = d.pipelines as PipelineSummary[];
+      setPipelines(list);
+      setLoading(false);
+    } else if (event === "pipeline:updated") {
+      const state = d.state as PipelineState;
+      const summary: PipelineSummary = {
+        id: state.id,
+        requirements: state.requirements,
+        status: state.status,
+        currentPhase: state.currentPhase,
+        createdAt: state.createdAt,
+        agents: state.agents,
+      };
       setPipelines((prev) => {
-        const idx = prev.findIndex((p) => p.id === msg.id);
-        const summary: PipelineSummary = {
-          id: msg.state.id,
-          requirements: msg.state.requirements,
-          status: msg.state.status,
-          currentPhase: msg.state.currentPhase,
-          createdAt: msg.state.createdAt,
-          agents: msg.state.agents,
-        };
+        const idx = prev.findIndex((p) => p.id === state.id);
         if (idx >= 0) {
           const next = [...prev];
           next[idx] = summary;
@@ -39,22 +34,14 @@ export function usePipelines() {
         }
         return [summary, ...prev];
       });
-    } else if (msg.type === "pipeline:removed") {
-      setPipelines((prev) => prev.filter((p) => p.id !== msg.id));
+      setLoading(false);
+    } else if (event === "pipeline:removed") {
+      const id = d.id as string;
+      setPipelines((prev) => prev.filter((p) => p.id !== id));
     }
   }, []);
 
-  const { send, connected } = useWebSocket(handleMessage, fetchPipelines);
-
-  useEffect(() => {
-    fetchPipelines();
-  }, [fetchPipelines]);
-
-  useEffect(() => {
-    if (connected) {
-      send({ type: "subscribe:all" });
-    }
-  }, [connected, send]);
+  useSSE("/api/pipelines/stream", handleEvent);
 
   return { pipelines, loading };
 }

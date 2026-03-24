@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import type { PipelineState, CheckpointInfo, ServerMessage } from "@/types/pipeline";
-import { useWebSocket } from "./use-websocket";
+import { useState, useCallback } from "react";
+import type { PipelineState, CheckpointInfo } from "@/types/pipeline";
+import { useSSE } from "./use-sse";
 
 export function usePipelineDetail(id: string) {
   const [pipeline, setPipeline] = useState<PipelineState | null>(null);
@@ -10,56 +10,42 @@ export function usePipelineDetail(id: string) {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  const fetchPipeline = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/pipelines/${id}`);
-      if (res.status === 404) {
-        setNotFound(true);
-        return;
-      }
-      const data = await res.json();
-      setPipeline(data);
-    } catch {
-      // Ignore
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+  const handleEvent = useCallback((event: string, data: unknown) => {
+    const d = data as Record<string, unknown>;
 
-  const handleMessage = useCallback((msg: ServerMessage) => {
-    if (msg.type === "pipeline:updated" && msg.id === id) {
-      setPipeline(msg.state);
-    } else if (msg.type === "pipeline:activity" && msg.id === id) {
+    if (event === "pipeline:updated" && d.id === id) {
+      setPipeline(d.state as PipelineState);
+      setLoading(false);
+    } else if (event === "pipeline:activity" && d.id === id) {
       setPipeline((prev) => {
         if (!prev) return prev;
-        return { ...prev, activities: [...prev.activities, msg.activity] };
+        const activity = d.activity as PipelineState["activities"][0];
+        return { ...prev, activities: [...prev.activities, activity] };
       });
-    } else if (msg.type === "pipeline:checkpoint" && msg.id === id) {
-      setCheckpoint(msg.checkpoint);
-    } else if (msg.type === "pipeline:removed" && msg.id === id) {
+    } else if (event === "pipeline:checkpoint" && d.id === id) {
+      setCheckpoint(d.checkpoint as CheckpointInfo);
+    } else if (event === "pipeline:removed" && d.id === id) {
       setNotFound(true);
     }
   }, [id]);
 
-  const { send, connected } = useWebSocket(handleMessage, fetchPipeline);
+  useSSE(`/api/pipelines/${id}/events`, handleEvent);
 
-  useEffect(() => {
-    fetchPipeline();
-  }, [fetchPipeline]);
-
-  useEffect(() => {
-    if (connected) {
-      send({ type: "subscribe", pipelineId: id });
-      return () => {
-        send({ type: "unsubscribe", pipelineId: id });
-      };
-    }
-  }, [connected, id, send]);
-
-  const respondToCheckpoint = useCallback((action: "approve" | "reject", message?: string) => {
-    send({ type: "checkpoint:respond", pipelineId: id, action, message });
-    setCheckpoint(null);
-  }, [id, send]);
+  const respondToCheckpoint = useCallback(
+    async (action: "approve" | "reject", message?: string) => {
+      try {
+        await fetch(`/api/pipelines/${id}/checkpoint`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, message }),
+        });
+        setCheckpoint(null);
+      } catch {
+        // Ignore fetch errors
+      }
+    },
+    [id],
+  );
 
   return { pipeline, checkpoint, loading, notFound, respondToCheckpoint };
 }

@@ -46,16 +46,10 @@ export interface PipelineSummary {
   agents: Record<string, AgentState>;
 }
 
-// WebSocket messages
+// SSE event data types (server → client only)
 export type ServerMessage =
   | { type: "pipeline:updated"; id: string; state: PipelineState }
   | { type: "pipeline:activity"; id: string; activity: Activity }
   | { type: "pipeline:checkpoint"; id: string; checkpoint: CheckpointInfo }
   | { type: "pipeline:removed"; id: string }
   | { type: "error"; message: string };
-
-export type ClientMessage =
-  | { type: "subscribe:all" }
-  | { type: "subscribe"; pipelineId: string }
-  | { type: "unsubscribe"; pipelineId: string }
-  | { type: "checkpoint:respond"; pipelineId: string; action: "approve" | "reject"; message?: string };
