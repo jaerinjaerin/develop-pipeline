@@ -1,6 +1,6 @@
 {
   "name": "create-claude-pipeline",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Claude Code 파이프라인 시스템을 프로젝트에 설치하고 대시보드를 실행합니다",
   "bin": {
     "create-claude-pipeline": "./bin/cli.js"

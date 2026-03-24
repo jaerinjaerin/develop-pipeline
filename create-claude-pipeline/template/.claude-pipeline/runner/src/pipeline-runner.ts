@@ -97,7 +97,7 @@ async function main(): Promise<void> {
 
   const claude = spawn("claude", ["-p", prompt, "--verbose"], {
     cwd: projectRoot,
-    stdio: ["pipe", "pipe", "pipe"],
+    stdio: ["ignore", "pipe", "pipe"],
     env: { ...process.env, PIPELINE_ID: PIPELINE_ID! },
   });
 
@@ -115,10 +115,6 @@ async function main(): Promise<void> {
 
       if (response.action === "approve") {
         stateManager.addActivity("system", "success", `Checkpoint Phase ${phase} approved`);
-        // Send approval to Claude via stdin
-        if (claude.stdin.writable) {
-          claude.stdin.write(`체크포인트 승인됨. 다음 Phase로 진행하세요.\n`);
-        }
       } else {
         const feedback = response.message || "사용자가 수정을 요청했습니다.";
         stateManager.addActivity(
@@ -126,10 +122,10 @@ async function main(): Promise<void> {
           "info",
           `Checkpoint Phase ${phase} rejected: ${feedback}`,
         );
-        if (claude.stdin.writable) {
-          claude.stdin.write(`체크포인트 거절됨. 피드백: ${feedback}\n수정 후 다시 진행해주세요.\n`);
-        }
       }
+      // Note: Claude runs in -p (print) mode with stdin ignored.
+      // Checkpoint responses are recorded in state.json activities.
+      // Claude reads checkpoint_response.json via signal protocol.
 
       stateManager.setStatus("running");
     } catch (err) {
