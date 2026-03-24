@@ -21,69 +21,98 @@ const CONTEXT_FILE_PHASES: Record<string, number> = {
 };
 
 /**
- * Fallback watcher: monitors the context/ directory for file creation.
- * Only updates state when SignalWatcher hasn't reported recently.
+ * Watches for context file creation in TWO locations:
+ * 1. pipelines/{id}/context/ — primary (dashboard-aware Claude)
+ * 2. project-root/context/  — fallback (Claude ignoring dashboard instructions)
+ *
+ * When a file is found at project root, it's copied into the pipeline dir.
  */
 export class ContextWatcher {
-  private contextDir: string;
-  private watcher: fs.FSWatcher | null = null;
+  private pipelineContextDir: string;
+  private rootContextDir: string;
   private seenFiles = new Set<string>();
   private lastSignalTime = 0;
+  private intervals: ReturnType<typeof setInterval>[] = [];
 
   constructor(
     private stateManager: StateManager,
     pipelinesDir: string,
     pipelineId: string,
   ) {
-    this.contextDir = path.join(pipelinesDir, pipelineId, "context");
+    this.pipelineContextDir = path.join(pipelinesDir, pipelineId, "context");
+    // Project root is one level up from pipelines dir
+    this.rootContextDir = path.join(pipelinesDir, "..", "context");
   }
 
-  /** Call this whenever SignalWatcher processes a signal */
   notifySignalProcessed(): void {
     this.lastSignalTime = Date.now();
   }
 
   start(): void {
-    fs.mkdirSync(this.contextDir, { recursive: true });
+    fs.mkdirSync(this.pipelineContextDir, { recursive: true });
 
-    // Scan existing files first
-    try {
-      const existing = fs.readdirSync(this.contextDir);
-      for (const file of existing) {
-        this.seenFiles.add(file);
-      }
-    } catch {
-      // directory might not exist yet
-    }
+    // Scan existing files
+    this.scanDir(this.pipelineContextDir);
+    this.scanDir(this.rootContextDir);
 
-    try {
-      this.watcher = fs.watch(this.contextDir, (eventType, filename) => {
-        if (eventType !== "rename" || !filename) return;
-        this.handleFile(filename);
-      });
-    } catch {
-      // fs.watch may fail on some systems, fall back to polling
-      setInterval(() => this.pollDirectory(), 3000);
-    }
+    // Poll both directories
+    this.intervals.push(
+      setInterval(() => this.pollDirectory(this.pipelineContextDir, false), 2000),
+      setInterval(() => this.pollDirectory(this.rootContextDir, true), 2000),
+    );
   }
 
   stop(): void {
-    if (this.watcher) {
-      this.watcher.close();
-      this.watcher = null;
+    for (const interval of this.intervals) {
+      clearInterval(interval);
+    }
+    this.intervals = [];
+  }
+
+  private scanDir(dir: string): void {
+    try {
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        this.seenFiles.add(file);
+      }
+    } catch {
+      // directory may not exist
     }
   }
 
-  private handleFile(filename: string): void {
+  private pollDirectory(dir: string, isRootFallback: boolean): void {
+    try {
+      if (!fs.existsSync(dir)) return;
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        this.handleFile(file, dir, isRootFallback);
+      }
+    } catch {
+      // directory may not exist yet
+    }
+  }
+
+  private handleFile(filename: string, sourceDir: string, isRootFallback: boolean): void {
     if (this.seenFiles.has(filename)) return;
 
-    // Check if file actually exists (rename events fire on delete too)
-    const filePath = path.join(this.contextDir, filename);
+    const filePath = path.join(sourceDir, filename);
     if (!fs.existsSync(filePath)) return;
 
     this.seenFiles.add(filename);
 
-    // Skip if SignalWatcher was active in the last 5 seconds
+    // If found at project root, copy to pipeline context dir
+    if (isRootFallback) {
+      const destPath = path.join(this.pipelineContextDir, filename);
+      if (!fs.existsSync(destPath)) {
+        try {
+          fs.copyFileSync(filePath, destPath);
+        } catch {
+          // copy may fail if file is being written
+        }
+      }
+    }
+
+    // Skip state update if SignalWatcher was active recently
     if (Date.now() - this.lastSignalTime < 5000) return;
 
     const phase = CONTEXT_FILE_PHASES[filename];
@@ -92,19 +121,8 @@ export class ContextWatcher {
       this.stateManager.addActivity(
         "system",
         "info",
-        `산출물 감지: context/${filename} (Phase ${phase})`,
+        `산출물 감지: context/${filename} (Phase ${phase})${isRootFallback ? " [루트에서 복사됨]" : ""}`,
       );
-    }
-  }
-
-  private pollDirectory(): void {
-    try {
-      const files = fs.readdirSync(this.contextDir);
-      for (const file of files) {
-        this.handleFile(file);
-      }
-    } catch {
-      // directory may not exist yet
     }
   }
 }

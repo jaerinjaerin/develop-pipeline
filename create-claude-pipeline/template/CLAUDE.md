@@ -305,8 +305,28 @@ context/
 ## Pipeline Dashboard Integration
 
 환경변수 `PIPELINE_ID`가 설정되어 있으면 **대시보드에서 실행 중**이다.
-아래 시그널 프로토콜을 반드시 따른다. 시그널 파일은 단순 텍스트 파일이며,
-대시보드의 Runner가 이 파일들을 감지하여 실시간 상태를 업데이트한다.
+아래 규칙을 반드시 따른다.
+
+### context 파일 경로 (중요!)
+
+대시보드 실행 시, **모든 context 파일은 파이프라인 전용 디렉토리에 생성한다:**
+```
+pipelines/$PIPELINE_ID/context/
+```
+
+즉, 일반 실행에서 `context/00_requirements.md`에 저장하던 파일을
+대시보드 실행 시에는 `pipelines/$PIPELINE_ID/context/00_requirements.md`에 저장한다.
+
+**모든 Phase의 산출물이 이 경로를 따라야 한다:**
+- `pipelines/$PIPELINE_ID/context/00_requirements.md` (Phase 0)
+- `pipelines/$PIPELINE_ID/context/01_plan.md` (Phase 1)
+- `pipelines/$PIPELINE_ID/context/02_design_spec.md` (Phase 2)
+- `pipelines/$PIPELINE_ID/context/03_api_spec.md` (Phase 2)
+- 등등...
+
+### 시그널 프로토콜
+
+시그널 파일은 단순 텍스트 파일이며, 대시보드의 Runner가 감지하여 실시간 상태를 업데이트한다.
 
 ### 시그널 디렉토리
 

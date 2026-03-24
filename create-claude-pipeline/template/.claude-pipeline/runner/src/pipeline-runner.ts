@@ -45,6 +45,14 @@ function buildPrompt(requirements: string, pipelineId: string): string {
     "",
     "중요: 이 세션은 파이프라인 대시보드에서 실행됩니다.",
     'CLAUDE.md의 "Pipeline Dashboard Integration" 섹션을 반드시 따르세요.',
+    "",
+    "특히 context 파일 경로에 주의하세요:",
+    `- 모든 산출물(context 파일)은 pipelines/${pipelineId}/context/ 에 생성`,
+    `- 시그널 파일은 pipelines/${pipelineId}/signals/ 에 생성`,
+    `- 예: pipelines/${pipelineId}/context/00_requirements.md`,
+    `- 예: pipelines/${pipelineId}/context/01_plan.md`,
+    "",
+    "절대 프로젝트 루트의 context/ 폴더에 파일을 만들지 마세요.",
   ].join("\n");
 }
 

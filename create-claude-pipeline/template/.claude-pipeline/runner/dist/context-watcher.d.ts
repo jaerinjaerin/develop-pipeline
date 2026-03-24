@@ -1,19 +1,23 @@
 import type { StateManager } from "./state-manager.js";
 /**
- * Fallback watcher: monitors the context/ directory for file creation.
- * Only updates state when SignalWatcher hasn't reported recently.
+ * Watches for context file creation in TWO locations:
+ * 1. pipelines/{id}/context/ — primary (dashboard-aware Claude)
+ * 2. project-root/context/  — fallback (Claude ignoring dashboard instructions)
+ *
+ * When a file is found at project root, it's copied into the pipeline dir.
  */
 export declare class ContextWatcher {
     private stateManager;
-    private contextDir;
-    private watcher;
+    private pipelineContextDir;
+    private rootContextDir;
     private seenFiles;
     private lastSignalTime;
+    private intervals;
     constructor(stateManager: StateManager, pipelinesDir: string, pipelineId: string);
-    /** Call this whenever SignalWatcher processes a signal */
     notifySignalProcessed(): void;
     start(): void;
     stop(): void;
-    private handleFile;
+    private scanDir;
     private pollDirectory;
+    private handleFile;
 }
