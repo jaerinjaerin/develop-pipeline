@@ -1,0 +1,32 @@
+{
+  "name": "create-claude-pipeline",
+  "version": "0.1.0",
+  "description": "Claude Code 파이프라인 시스템을 프로젝트에 설치하고 대시보드를 실행합니다",
+  "bin": {
+    "create-claude-pipeline": "./bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "template/"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs --out-dir bin --clean",
+    "dev": "tsup src/index.ts --format cjs --out-dir bin --watch"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "detect-port": "^2.0.0",
+    "fs-extra": "^11.3.0",
+    "open": "^10.1.0",
+    "ora": "^8.2.0"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20.0.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.0"
+  }
+}
