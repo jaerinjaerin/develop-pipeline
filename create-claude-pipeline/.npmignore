@@ -1,0 +1,6 @@
+src/
+tsconfig.json
+tsup.config.ts
+node_modules/
+template/.claude-pipeline/dashboard/node_modules/
+template/.claude-pipeline/dashboard/.next/
