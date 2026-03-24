@@ -3,7 +3,7 @@ import { listPipelines, getPipelinesDir } from "@/lib/pipelines";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
 import path from "path";
-import { spawn } from "child_process";
+import { spawn, execSync } from "child_process";
 
 export async function GET() {
   try {
@@ -21,6 +21,16 @@ export async function POST(request: Request) {
 
     if (!requirements || !requirements.trim()) {
       return NextResponse.json({ error: "Requirements is required" }, { status: 400 });
+    }
+
+    // Pre-check: Claude CLI available?
+    try {
+      execSync("claude --version", { timeout: 10000, stdio: "pipe" });
+    } catch {
+      return NextResponse.json(
+        { error: "Claude CLI를 찾을 수 없거나 로그인되어 있지 않습니다. `claude --version`을 확인해주세요." },
+        { status: 503 },
+      );
     }
 
     const id = uuidv4();
@@ -44,17 +54,31 @@ export async function POST(request: Request) {
       JSON.stringify(initialState, null, 2)
     );
 
-    // Spawn CLI process (fire-and-forget)
+    // Spawn pipeline-runner (wrapper that manages Claude CLI + state)
     try {
-      const child = spawn("claude", [requirements.trim()], {
+      const runnerScript = path.resolve(
+        process.cwd(),
+        "..",
+        ".claude-pipeline",
+        "runner",
+        "dist",
+        "pipeline-runner.js",
+      );
+
+      const child = spawn("node", [runnerScript], {
         cwd: path.resolve(process.cwd(), ".."),
         detached: true,
         stdio: "ignore",
-        env: { ...process.env, PIPELINE_ID: id },
+        env: {
+          ...process.env,
+          PIPELINE_ID: id,
+          PIPELINES_DIR: getPipelinesDir(),
+          PIPELINE_REQUIREMENTS: requirements.trim(),
+        },
       });
       child.unref();
     } catch (e) {
-      console.error("Failed to spawn CLI:", e);
+      console.error("Failed to spawn pipeline runner:", e);
     }
 
     return NextResponse.json({ id, status: "running" }, { status: 201 });

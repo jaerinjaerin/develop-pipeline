@@ -11,6 +11,7 @@ interface NewPipelineModalProps {
 export function NewPipelineModal({ open, onClose }: NewPipelineModalProps) {
   const [requirements, setRequirements] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   if (!open) return null;
@@ -20,6 +21,7 @@ export function NewPipelineModal({ open, onClose }: NewPipelineModalProps) {
     if (!requirements.trim() || loading) return;
 
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/pipelines", {
         method: "POST",
@@ -30,7 +32,11 @@ export function NewPipelineModal({ open, onClose }: NewPipelineModalProps) {
       if (res.ok) {
         router.push(`/pipeline/${data.id}`);
         onClose();
+      } else {
+        setError(data.error || "파이프라인 생성에 실패했습니다.");
       }
+    } catch {
+      setError("서버에 연결할 수 없습니다.");
     } finally {
       setLoading(false);
     }
@@ -48,6 +54,11 @@ export function NewPipelineModal({ open, onClose }: NewPipelineModalProps) {
             className="w-full bg-[#111827] border border-border rounded-lg p-3 text-text-primary text-sm resize-none h-32 focus:outline-none focus:border-accent-purple"
             autoFocus
           />
+          {error && (
+            <p className="text-red-400 text-sm mt-2 bg-red-400/10 border border-red-400/20 rounded-lg p-3">
+              {error}
+            </p>
+          )}
           <div className="flex justify-end gap-2 mt-4">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-text-secondary bg-border rounded-lg hover:bg-text-muted/30">
               취소

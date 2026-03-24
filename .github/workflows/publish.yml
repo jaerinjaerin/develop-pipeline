@@ -1,0 +1,60 @@
+name: Publish to npm
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "create-claude-pipeline/**"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: create-claude-pipeline
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      # Runner 빌드 (template에 포함되어 npm publish 대상)
+      - name: Install runner dependencies
+        run: cd template/.claude-pipeline/runner && npm ci
+
+      - name: Build runner
+        run: cd template/.claude-pipeline/runner && npm run build
+
+      # CLI 빌드
+      - name: Install CLI dependencies
+        run: npm ci
+
+      - name: Build CLI
+        run: npm run build
+
+      # 버전 중복 체크 → 이미 게시된 버전이면 skip
+      - name: Check if version already published
+        id: version-check
+        run: |
+          LOCAL=$(node -p "require('./package.json').version")
+          REMOTE=$(npm view create-claude-pipeline version 2>/dev/null || echo "0.0.0")
+          echo "local=$LOCAL" >> "$GITHUB_OUTPUT"
+          echo "remote=$REMOTE" >> "$GITHUB_OUTPUT"
+          if [ "$LOCAL" = "$REMOTE" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm
+        if: steps.version-check.outputs.skip == 'false'
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Skip (version unchanged)
+        if: steps.version-check.outputs.skip == 'true'
+        run: echo "Version ${{ steps.version-check.outputs.local }} already published — skipping"

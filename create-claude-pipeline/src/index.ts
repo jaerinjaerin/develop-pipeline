@@ -93,13 +93,22 @@ async function main(): Promise<void> {
     log.success(".gitignore 이미 최신 — 건너뜀");
   }
 
-  log.step(5, TOTAL_STEPS, "대시보드 설치 중...");
+  log.step(5, TOTAL_STEPS, "Runner & 대시보드 설치 중...");
   const spinner = ora("  npm install 실행 중...").start();
   try {
+    // Install + build runner
+    const runnerDir = path.join(cwd, ".claude-pipeline", "runner");
+    await npmInstall(runnerDir);
+    spinner.text = "  Runner 빌드 중...";
+    const { execSync } = await import("child_process");
+    execSync("npm run build", { cwd: runnerDir, stdio: "pipe", timeout: 60_000 });
+
+    // Install dashboard
+    spinner.text = "  대시보드 npm install 실행 중...";
     await npmInstall(path.join(cwd, ".claude-pipeline", "dashboard"));
-    spinner.succeed("  npm install 완료");
+    spinner.succeed("  npm install + 빌드 완료");
   } catch (err) {
-    spinner.fail("  npm install 실패");
+    spinner.fail("  설치/빌드 실패");
     log.error(err instanceof Error ? err.message : String(err));
     process.exit(1);
   }

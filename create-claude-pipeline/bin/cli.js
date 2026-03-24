@@ -96,8 +96,11 @@ async function copyTemplateFiles(targetDir) {
   const dashboardSrc = import_path2.default.join(templateDir, ".claude-pipeline", "dashboard");
   const dashboardDest = import_path2.default.join(targetDir, ".claude-pipeline", "dashboard");
   await import_fs_extra.default.copy(dashboardSrc, dashboardDest, { overwrite: true });
+  const runnerSrc = import_path2.default.join(templateDir, ".claude-pipeline", "runner");
+  const runnerDest = import_path2.default.join(targetDir, ".claude-pipeline", "runner");
+  await import_fs_extra.default.copy(runnerSrc, runnerDest, { overwrite: true });
   await import_fs_extra.default.ensureDir(import_path2.default.join(targetDir, "pipelines"));
-  return { agents, skills, references, dashboard: true };
+  return { agents, skills, references, dashboard: true, runner: true };
 }
 
 // src/merge-claude-md.ts
@@ -340,13 +343,19 @@ async function main() {
   } else {
     success(".gitignore \uC774\uBBF8 \uCD5C\uC2E0 \u2014 \uAC74\uB108\uB700");
   }
-  step(5, TOTAL_STEPS, "\uB300\uC2DC\uBCF4\uB4DC \uC124\uCE58 \uC911...");
+  step(5, TOTAL_STEPS, "Runner & \uB300\uC2DC\uBCF4\uB4DC \uC124\uCE58 \uC911...");
   const spinner = (0, import_ora.default)("  npm install \uC2E4\uD589 \uC911...").start();
   try {
+    const runnerDir = import_path7.default.join(cwd, ".claude-pipeline", "runner");
+    await npmInstall(runnerDir);
+    spinner.text = "  Runner \uBE4C\uB4DC \uC911...";
+    const { execSync: execSync2 } = await import("child_process");
+    execSync2("npm run build", { cwd: runnerDir, stdio: "pipe", timeout: 6e4 });
+    spinner.text = "  \uB300\uC2DC\uBCF4\uB4DC npm install \uC2E4\uD589 \uC911...";
     await npmInstall(import_path7.default.join(cwd, ".claude-pipeline", "dashboard"));
-    spinner.succeed("  npm install \uC644\uB8CC");
+    spinner.succeed("  npm install + \uBE4C\uB4DC \uC644\uB8CC");
   } catch (err) {
-    spinner.fail("  npm install \uC2E4\uD328");
+    spinner.fail("  \uC124\uCE58/\uBE4C\uB4DC \uC2E4\uD328");
     error(err instanceof Error ? err.message : String(err));
     process.exit(1);
   }

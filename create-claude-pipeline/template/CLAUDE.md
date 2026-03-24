@@ -299,3 +299,68 @@ context/
 8. **모호하면 질문한다**
    어떤 Agent도 요구사항이 불명확할 때 임의로 가정하지 않는다.
    반드시 PM을 통해 사용자에게 질문하고 확인 후 진행한다.
+
+---
+
+## Pipeline Dashboard Integration
+
+환경변수 `PIPELINE_ID`가 설정되어 있으면 **대시보드에서 실행 중**이다.
+아래 시그널 프로토콜을 반드시 따른다. 시그널 파일은 단순 텍스트 파일이며,
+대시보드의 Runner가 이 파일들을 감지하여 실시간 상태를 업데이트한다.
+
+### 시그널 디렉토리
+
+모든 시그널 파일은 아래 경로에 생성한다:
+```
+pipelines/$PIPELINE_ID/signals/
+```
+
+### Phase 전환
+
+새 Phase를 시작할 때:
+```bash
+echo "PHASE번호" > pipelines/$PIPELINE_ID/signals/.phase
+```
+예: `echo "1" > pipelines/$PIPELINE_ID/signals/.phase`
+
+### Agent 상태
+
+Agent가 작업을 시작하거나 완료할 때:
+```bash
+echo "working" > pipelines/$PIPELINE_ID/signals/.agent_AGENT_ID
+echo "done" > pipelines/$PIPELINE_ID/signals/.agent_AGENT_ID
+```
+예: `echo "working" > pipelines/$PIPELINE_ID/signals/.agent_alex`
+
+### 활동 로그
+
+대시보드에 표시할 진행 상황 메시지:
+```bash
+echo "AGENT_ID|TYPE|MESSAGE" >> pipelines/$PIPELINE_ID/signals/.activity
+```
+- TYPE: `info`, `progress`, `success`, `error`
+- 예: `echo "alex|progress|요구사항 분석 중" >> pipelines/$PIPELINE_ID/signals/.activity`
+
+### 산출물 등록
+
+context 파일이 완성되었을 때:
+```bash
+echo "FILENAME|PHASE" >> pipelines/$PIPELINE_ID/signals/.output
+```
+예: `echo "context/01_plan.md|1" >> pipelines/$PIPELINE_ID/signals/.output`
+
+### 체크포인트 (필수)
+
+각 Phase의 체크포인트에서 **반드시** 다음을 수행한다:
+
+1. 체크포인트 시그널 작성:
+```bash
+echo "PHASE|설명" > pipelines/$PIPELINE_ID/signals/.checkpoint
+```
+예: `echo "1|기획안 검토" > pipelines/$PIPELINE_ID/signals/.checkpoint`
+
+2. **사용자 입력을 기다린다.** 대시보드 Runner가 사용자의 승인/거절 응답을 stdin으로 전달한다.
+
+3. 응답에 따라:
+   - **승인** → 다음 Phase로 진행
+   - **거절 + 피드백** → 피드백을 반영하여 수정 후 다시 체크포인트 시그널 작성

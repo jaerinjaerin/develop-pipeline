@@ -35,6 +35,7 @@ export interface CopyTemplateResult {
   skills: CopyResult;
   references: CopyResult;
   dashboard: boolean;
+  runner: boolean;
 }
 
 export async function copyTemplateFiles(targetDir: string): Promise<CopyTemplateResult> {
@@ -59,7 +60,11 @@ export async function copyTemplateFiles(targetDir: string): Promise<CopyTemplate
   const dashboardDest = path.join(targetDir, ".claude-pipeline", "dashboard");
   await fs.copy(dashboardSrc, dashboardDest, { overwrite: true });
 
+  const runnerSrc = path.join(templateDir, ".claude-pipeline", "runner");
+  const runnerDest = path.join(targetDir, ".claude-pipeline", "runner");
+  await fs.copy(runnerSrc, runnerDest, { overwrite: true });
+
   await fs.ensureDir(path.join(targetDir, "pipelines"));
 
-  return { agents, skills, references, dashboard: true };
+  return { agents, skills, references, dashboard: true, runner: true };
 }
