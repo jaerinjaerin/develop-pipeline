@@ -4,7 +4,14 @@ import type { PipelineState, PipelineSummary } from "@/types/pipeline";
 
 // process.cwd() = .claude-pipeline/dashboard/ → ../.. = project root
 const PIPELINES_DIR = process.env.PIPELINES_DIR
-  || path.resolve(process.cwd(), "..", "..", "pipelines");
+  || (() => {
+    const fallback = path.resolve(process.cwd(), "..", "..", "pipelines");
+    console.warn(
+      `[pipelines] PIPELINES_DIR not set, using cwd-based fallback: ${fallback}. ` +
+      `Set PIPELINES_DIR env var for reliable path resolution.`
+    );
+    return fallback;
+  })();
 
 export function getPipelinesDir(): string {
   return path.resolve(PIPELINES_DIR);
