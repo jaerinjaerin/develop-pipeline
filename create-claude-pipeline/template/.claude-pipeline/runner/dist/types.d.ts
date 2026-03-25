@@ -31,4 +31,5 @@ export interface CheckpointResponse {
     action: "approve" | "reject";
     message: string;
     timestamp: string;
+    phase: number;
 }

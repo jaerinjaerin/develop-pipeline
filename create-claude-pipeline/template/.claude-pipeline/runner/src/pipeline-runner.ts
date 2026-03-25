@@ -22,6 +22,14 @@ if (!REQUIREMENTS) {
 const projectRoot = path.resolve(PIPELINES_DIR, "..");
 const contextDir = path.join(PIPELINES_DIR, PIPELINE_ID, "context");
 
+const PHASE_TIMEOUTS: Record<number, number> = {
+  0: 5 * 60_000,   // 5min
+  1: 10 * 60_000,  // 10min
+  2: 15 * 60_000,  // 15min
+  3: 30 * 60_000,  // 30min
+  4: 20 * 60_000,  // 20min
+};
+
 // ── Pre-check ───────────────────────────────────────────────────────
 function checkClaudeCLI(): boolean {
   try {
@@ -33,7 +41,11 @@ function checkClaudeCLI(): boolean {
 }
 
 // ── Run a single Claude -p call and return stdout ───────────────────
-function runClaude(prompt: string): Promise<{ stdout: string; code: number }> {
+function runClaude(
+  prompt: string,
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<{ stdout: string; code: number }> {
   return new Promise((resolve) => {
     const child = spawn("claude", ["-p", prompt], {
       cwd: projectRoot,
@@ -43,11 +55,30 @@ function runClaude(prompt: string): Promise<{ stdout: string; code: number }> {
 
     let stdout = "";
     let stderr = "";
+    let killed = false;
+
+    const timer = setTimeout(() => {
+      killed = true;
+      child.kill("SIGTERM");
+      setTimeout(() => {
+        if (!child.killed) child.kill("SIGKILL");
+      }, 5000);
+    }, timeoutMs);
+
+    if (signal) {
+      signal.addEventListener("abort", () => {
+        killed = true;
+        clearTimeout(timer);
+        child.kill("SIGTERM");
+        setTimeout(() => {
+          if (!child.killed) child.kill("SIGKILL");
+        }, 5000);
+      }, { once: true });
+    }
 
     child.stdout.on("data", (data: Buffer) => {
       const text = data.toString();
       stdout += text;
-      // Print lines as they come
       for (const line of text.split("\n")) {
         if (line.trim()) console.log(`[Claude] ${line}`);
       }
@@ -58,11 +89,17 @@ function runClaude(prompt: string): Promise<{ stdout: string; code: number }> {
     });
 
     child.on("close", (code) => {
+      clearTimeout(timer);
       if (stderr.trim()) console.error(`[Claude:err] ${stderr.trim()}`);
-      resolve({ stdout, code: code ?? 1 });
+      if (killed) {
+        resolve({ stdout, code: -1 });
+      } else {
+        resolve({ stdout, code: code ?? 1 });
+      }
     });
 
     child.on("error", () => {
+      clearTimeout(timer);
       resolve({ stdout, code: 1 });
     });
   });
@@ -295,12 +332,42 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  const pidFile = path.join(PIPELINES_DIR!, PIPELINE_ID!, "runner.pid");
+  fs.writeFileSync(pidFile, String(process.pid));
+
+  const heartbeatFile = path.join(PIPELINES_DIR!, PIPELINE_ID!, "heartbeat");
+  fs.writeFileSync(heartbeatFile, String(Date.now()));
+
+  const heartbeatTimer = setInterval(() => {
+    try {
+      fs.writeFileSync(heartbeatFile, String(Date.now()));
+    } catch { /* ignore */ }
+  }, 10_000);
+
+  function cleanup(): void {
+    clearInterval(heartbeatTimer);
+    try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
+    try { fs.unlinkSync(heartbeatFile); } catch { /* ignore */ }
+  }
+  process.on("exit", cleanup);
+
   // Ensure context directory exists
   fs.mkdirSync(contextDir, { recursive: true });
 
   // Start context watcher (fallback: copies root context/ to pipeline context/)
   const contextWatcher = new ContextWatcher(stateManager, PIPELINES_DIR!, PIPELINE_ID!);
   contextWatcher.start();
+
+  const abortController = new AbortController();
+  const { signal } = abortController;
+
+  const gracefulShutdown = (sig: string) => {
+    console.log(`[Runner] ${sig} received, shutting down...`);
+    abortController.abort();
+    setTimeout(() => process.exit(1), 10_000);
+  };
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
   stateManager.setStatus("running");
   stateManager.addActivity("system", "info", "파이프라인 시작");
@@ -329,7 +396,16 @@ async function main(): Promise<void> {
         prompt += `\n\n## 사용자 피드백 (수정 요청)\n${lastFeedback}\n\n위 피드백을 반영하여 이 Phase를 다시 수행해주세요.`;
       }
 
-      const result = await runClaude(prompt);
+      const timeoutMs = PHASE_TIMEOUTS[phase] ?? 15 * 60_000;
+      const result = await runClaude(prompt, timeoutMs, signal);
+
+      if (result.code === -1) {
+        stateManager.setStatus("failed");
+        stateManager.addActivity("system", "error",
+          `Phase ${phase} 타임아웃 (${timeoutMs / 60_000}분 초과)`);
+        contextWatcher.stop();
+        return;
+      }
 
       if (result.code !== 0) {
         stateManager.setStatus("failed");
@@ -364,7 +440,7 @@ async function main(): Promise<void> {
       console.log(`[Runner] Checkpoint Phase ${phase}: waiting for approval...`);
 
       try {
-        const response = await waitForCheckpoint(PIPELINES_DIR!, PIPELINE_ID!);
+        const response = await waitForCheckpoint(PIPELINES_DIR!, PIPELINE_ID!, phase, signal);
 
         if (response.action === "approve") {
           const msg = response.message

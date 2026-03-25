@@ -54,21 +54,15 @@ export async function POST(request: Request) {
       JSON.stringify(initialState, null, 2)
     );
 
-    // Spawn pipeline-runner (wrapper that manages Claude CLI + state)
-    try {
-      // process.cwd() = .claude-pipeline/dashboard/
-      // ..    = .claude-pipeline/
-      // ../.. = project root
-      const projectRoot = path.resolve(process.cwd(), "..", "..");
-      const runnerScript = path.resolve(
-        projectRoot,
-        ".claude-pipeline",
-        "runner",
-        "dist",
-        "pipeline-runner.js",
-      );
+    // Spawn pipeline-runner
+    const projectRoot = path.resolve(process.cwd(), "..", "..");
+    const runnerScript = path.resolve(
+      projectRoot, ".claude-pipeline", "runner", "dist", "pipeline-runner.js",
+    );
 
-      const child = spawn("node", [runnerScript], {
+    let child;
+    try {
+      child = spawn("node", [runnerScript], {
         cwd: projectRoot,
         detached: true,
         stdio: "ignore",
@@ -81,7 +75,20 @@ export async function POST(request: Request) {
       });
       child.unref();
     } catch (e) {
+      const failedState = { ...initialState, status: "failed" };
+      fs.writeFileSync(
+        path.join(pipelineDir, "state.json"),
+        JSON.stringify(failedState, null, 2)
+      );
       console.error("Failed to spawn pipeline runner:", e);
+      return NextResponse.json(
+        { id, status: "failed", error: "Runner 실행 실패" },
+        { status: 500 },
+      );
+    }
+
+    if (child.pid) {
+      fs.writeFileSync(path.join(pipelineDir, "runner.pid"), String(child.pid));
     }
 
     return NextResponse.json({ id, status: "running" }, { status: 201 });

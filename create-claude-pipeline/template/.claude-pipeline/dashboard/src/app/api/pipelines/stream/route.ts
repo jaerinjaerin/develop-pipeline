@@ -44,7 +44,11 @@ export async function GET() {
               lastMtimes.set(entry.name, mtime);
               const state = readPipelineState(entry.name);
               if (state) {
-                writer.write("pipeline:updated", { id: entry.name, state });
+                const { activities, ...summary } = state;
+                writer.write("pipeline:updated", {
+                  id: entry.name,
+                  state: { ...summary, activitiesCount: activities.length },
+                });
               }
             }
           } catch {

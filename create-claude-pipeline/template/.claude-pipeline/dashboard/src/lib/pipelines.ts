@@ -4,7 +4,14 @@ import type { PipelineState, PipelineSummary } from "@/types/pipeline";
 
 // process.cwd() = .claude-pipeline/dashboard/ → ../.. = project root
 const PIPELINES_DIR = process.env.PIPELINES_DIR
-  || path.resolve(process.cwd(), "..", "..", "pipelines");
+  || (() => {
+    const fallback = path.resolve(process.cwd(), "..", "..", "pipelines");
+    console.warn(
+      `[pipelines] PIPELINES_DIR not set, using cwd-based fallback: ${fallback}. ` +
+      `Set PIPELINES_DIR env var for reliable path resolution.`
+    );
+    return fallback;
+  })();
 
 export function getPipelinesDir(): string {
   return path.resolve(PIPELINES_DIR);
@@ -75,16 +82,26 @@ export function readOutputFile(pipelineId: string, filepath: string): { content:
   }
 }
 
-export function writeCheckpointResponse(pipelineId: string, action: string, message?: string): boolean {
-  const filePath = path.join(getPipelineDir(pipelineId), "checkpoint_response.json");
+export function writeCheckpointResponse(
+  pipelineId: string,
+  action: string,
+  message?: string,
+  phase?: number,
+): boolean {
+  const dir = getPipelineDir(pipelineId);
+  const filePath = path.join(dir, "checkpoint_response.json");
+  const tmpPath = filePath + `.tmp.${Date.now()}`;
   try {
-    fs.writeFileSync(filePath, JSON.stringify({
+    fs.writeFileSync(tmpPath, JSON.stringify({
       action,
       message: message || "",
+      phase: phase ?? -1,
       timestamp: new Date().toISOString(),
     }));
+    fs.renameSync(tmpPath, filePath);
     return true;
   } catch {
+    try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
     return false;
   }
 }

@@ -14,6 +14,11 @@ export declare class SignalWatcher extends EventEmitter<SignalWatcherEvents> {
     constructor(stateManager: StateManager, pipelinesDir: string, pipelineId: string);
     start(intervalMs?: number): void;
     stop(): void;
+    /**
+     * Atomically claim a signal file by renaming it, then read and delete.
+     * Returns null if file doesn't exist or another process claimed it.
+     */
+    private claimAndRead;
     private poll;
     private processPhase;
     private processAgents;
