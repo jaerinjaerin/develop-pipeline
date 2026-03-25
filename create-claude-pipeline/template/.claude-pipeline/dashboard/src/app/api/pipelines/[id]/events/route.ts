@@ -72,6 +72,23 @@ export async function GET(
         if (checkpoint) {
           writer.write("pipeline:checkpoint", { id, checkpoint });
         }
+
+        if (state.status === "running" || state.status === "paused") {
+          const heartbeatPath = path.join(pipelineDir, "heartbeat");
+          try {
+            const hbStat = fs.statSync(heartbeatPath);
+            const staleMs = Date.now() - hbStat.mtimeMs;
+            if (staleMs > 30_000) {
+              writer.write("pipeline:runner_stale", {
+                id,
+                lastHeartbeat: hbStat.mtimeMs,
+                staleMs,
+              });
+            }
+          } catch {
+            // heartbeat file doesn't exist — old runner or not started yet
+          }
+        }
       } catch {
         // state.json may be mid-write or pipeline removed
         if (!fs.existsSync(pipelineDir)) {

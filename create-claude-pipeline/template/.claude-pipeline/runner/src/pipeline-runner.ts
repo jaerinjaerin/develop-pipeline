@@ -335,6 +335,22 @@ async function main(): Promise<void> {
   const pidFile = path.join(PIPELINES_DIR!, PIPELINE_ID!, "runner.pid");
   fs.writeFileSync(pidFile, String(process.pid));
 
+  const heartbeatFile = path.join(PIPELINES_DIR!, PIPELINE_ID!, "heartbeat");
+  fs.writeFileSync(heartbeatFile, String(Date.now()));
+
+  const heartbeatTimer = setInterval(() => {
+    try {
+      fs.writeFileSync(heartbeatFile, String(Date.now()));
+    } catch { /* ignore */ }
+  }, 10_000);
+
+  function cleanup(): void {
+    clearInterval(heartbeatTimer);
+    try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
+    try { fs.unlinkSync(heartbeatFile); } catch { /* ignore */ }
+  }
+  process.on("exit", cleanup);
+
   // Ensure context directory exists
   fs.mkdirSync(contextDir, { recursive: true });
 
