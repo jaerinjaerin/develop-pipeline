@@ -37,6 +37,27 @@ export class SignalWatcher extends EventEmitter<SignalWatcherEvents> {
     }
   }
 
+  /**
+   * Atomically claim a signal file by renaming it, then read and delete.
+   * Returns null if file doesn't exist or another process claimed it.
+   */
+  private claimAndRead(filePath: string): string | null {
+    const claimedPath = filePath + ".processing";
+    try {
+      fs.renameSync(filePath, claimedPath);
+    } catch {
+      return null;
+    }
+    try {
+      const content = fs.readFileSync(claimedPath, "utf-8");
+      fs.unlinkSync(claimedPath);
+      return content;
+    } catch {
+      try { fs.unlinkSync(claimedPath); } catch { /* ignore */ }
+      return null;
+    }
+  }
+
   private poll(): void {
     try {
       this.processPhase();
@@ -51,16 +72,15 @@ export class SignalWatcher extends EventEmitter<SignalWatcherEvents> {
 
   private processPhase(): void {
     const file = path.join(this.signalsDir, ".phase");
-    if (!fs.existsSync(file)) return;
+    const content = this.claimAndRead(file);
+    if (content === null) return;
 
-    const content = fs.readFileSync(file, "utf-8").trim();
-    const phase = parseInt(content, 10);
+    const phase = parseInt(content.trim(), 10);
     if (!isNaN(phase) && phase >= 0 && phase <= 4) {
       this.stateManager.setPhase(phase);
       this.stateManager.addActivity("system", "info", `Phase ${phase} 시작`);
       this.emit("phase", phase);
     }
-    fs.unlinkSync(file);
   }
 
   private processAgents(): void {
@@ -73,44 +93,39 @@ export class SignalWatcher extends EventEmitter<SignalWatcherEvents> {
 
     for (const name of entries) {
       if (!name.startsWith(".agent_")) continue;
+      // Skip .processing files from claimAndRead
+      if (name.endsWith(".processing")) continue;
       const agentId = name.slice(".agent_".length);
       const file = path.join(this.signalsDir, name);
 
-      try {
-        const status = fs.readFileSync(file, "utf-8").trim();
-        if (status === "working" || status === "done" || status === "idle") {
-          this.stateManager.setAgentStatus(agentId, status);
-        }
-        fs.unlinkSync(file);
-      } catch {
-        // file may have been deleted between readdir and read
+      const content = this.claimAndRead(file);
+      if (content === null) continue;
+
+      const status = content.trim();
+      if (status === "working" || status === "done" || status === "idle") {
+        this.stateManager.setAgentStatus(agentId, status);
       }
     }
   }
 
   private processCheckpoint(): void {
     const file = path.join(this.signalsDir, ".checkpoint");
-    if (!fs.existsSync(file)) return;
+    const content = this.claimAndRead(file);
+    if (content === null) return;
 
-    const content = fs.readFileSync(file, "utf-8").trim();
-    const pipeIdx = content.indexOf("|");
-    if (pipeIdx === -1) {
-      fs.unlinkSync(file);
-      return;
-    }
+    const pipeIdx = content.trim().indexOf("|");
+    if (pipeIdx === -1) return;
 
-    const phase = parseInt(content.slice(0, pipeIdx), 10);
-    const description = content.slice(pipeIdx + 1);
+    const phase = parseInt(content.trim().slice(0, pipeIdx), 10);
+    const description = content.trim().slice(pipeIdx + 1);
 
     if (!isNaN(phase)) {
       this.stateManager.addActivity(
-        "system",
-        "info",
+        "system", "info",
         `Checkpoint Phase ${phase}: ${description}`,
       );
       this.emit("checkpoint", phase, description);
     }
-    fs.unlinkSync(file);
   }
 
   private processActivities(): void {

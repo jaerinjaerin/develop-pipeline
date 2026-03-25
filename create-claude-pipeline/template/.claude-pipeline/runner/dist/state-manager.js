@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+const MAX_ACTIVITIES = 200;
 export class StateManager {
     stateFile;
     pipelineDir;
@@ -17,7 +18,14 @@ export class StateManager {
             return null;
         }
     }
-    /** Atomic update: read → modify → write via temp file + rename */
+    /**
+     * Atomic update: read → modify → write via temp file + rename.
+     *
+     * INVARIANT: Only ONE process should write to state.json.
+     * Currently Runner and ContextWatcher share a single Node.js process,
+     * and all I/O is synchronous, so the event loop serializes updates.
+     * If the architecture changes to multi-process, add file locking.
+     */
     update(updater) {
         const state = this.read();
         if (!state)
@@ -25,7 +33,16 @@ export class StateManager {
         const updated = updater(state);
         const tmpFile = path.join(this.pipelineDir, `.state.tmp.${Date.now()}`);
         fs.writeFileSync(tmpFile, JSON.stringify(updated, null, 2));
-        fs.renameSync(tmpFile, this.stateFile);
+        try {
+            fs.renameSync(tmpFile, this.stateFile);
+        }
+        catch (err) {
+            try {
+                fs.unlinkSync(tmpFile);
+            }
+            catch { /* ignore */ }
+            throw err;
+        }
     }
     setStatus(status) {
         this.update((s) => ({ ...s, status }));
