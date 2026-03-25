@@ -3,6 +3,8 @@ import path from "path";
 import crypto from "crypto";
 import type { PipelineState, Activity, AgentState, OutputEntry } from "./types.js";
 
+const MAX_ACTIVITIES = 200;
+
 export class StateManager {
   private stateFile: string;
   private pipelineDir: string;
@@ -21,7 +23,14 @@ export class StateManager {
     }
   }
 
-  /** Atomic update: read → modify → write via temp file + rename */
+  /**
+   * Atomic update: read → modify → write via temp file + rename.
+   *
+   * INVARIANT: Only ONE process should write to state.json.
+   * Currently Runner and ContextWatcher share a single Node.js process,
+   * and all I/O is synchronous, so the event loop serializes updates.
+   * If the architecture changes to multi-process, add file locking.
+   */
   update(updater: (state: PipelineState) => PipelineState): void {
     const state = this.read();
     if (!state) throw new Error(`Cannot read state: ${this.stateFile}`);
@@ -30,7 +39,12 @@ export class StateManager {
     const tmpFile = path.join(this.pipelineDir, `.state.tmp.${Date.now()}`);
 
     fs.writeFileSync(tmpFile, JSON.stringify(updated, null, 2));
-    fs.renameSync(tmpFile, this.stateFile);
+    try {
+      fs.renameSync(tmpFile, this.stateFile);
+    } catch (err) {
+      try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+      throw err;
+    }
   }
 
   setStatus(status: PipelineState["status"]): void {
@@ -52,19 +66,20 @@ export class StateManager {
   }
 
   addActivity(agentId: string, type: Activity["type"], message: string): void {
-    this.update((s) => ({
-      ...s,
-      activities: [
-        ...s.activities,
-        {
-          id: crypto.randomUUID(),
-          agentId,
-          message,
-          timestamp: new Date().toISOString(),
-          type,
-        },
-      ],
-    }));
+    this.update((s) => {
+      const newActivity = {
+        id: crypto.randomUUID(),
+        agentId,
+        message,
+        timestamp: new Date().toISOString(),
+        type,
+      };
+      const activities = [...s.activities, newActivity];
+      const trimmed = activities.length > MAX_ACTIVITIES
+        ? activities.slice(activities.length - MAX_ACTIVITIES)
+        : activities;
+      return { ...s, activities: trimmed };
+    });
   }
 
   addOutput(filename: string, phase: number): void {

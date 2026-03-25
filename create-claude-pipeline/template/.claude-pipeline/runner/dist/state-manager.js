@@ -60,19 +60,20 @@ export class StateManager {
         }));
     }
     addActivity(agentId, type, message) {
-        this.update((s) => ({
-            ...s,
-            activities: [
-                ...s.activities,
-                {
-                    id: crypto.randomUUID(),
-                    agentId,
-                    message,
-                    timestamp: new Date().toISOString(),
-                    type,
-                },
-            ],
-        }));
+        this.update((s) => {
+            const newActivity = {
+                id: crypto.randomUUID(),
+                agentId,
+                message,
+                timestamp: new Date().toISOString(),
+                type,
+            };
+            const activities = [...s.activities, newActivity];
+            const trimmed = activities.length > MAX_ACTIVITIES
+                ? activities.slice(activities.length - MAX_ACTIVITIES)
+                : activities;
+            return { ...s, activities: trimmed };
+        });
     }
     addOutput(filename, phase) {
         this.update((s) => {
