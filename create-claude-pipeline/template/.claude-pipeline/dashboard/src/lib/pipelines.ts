@@ -82,16 +82,26 @@ export function readOutputFile(pipelineId: string, filepath: string): { content:
   }
 }
 
-export function writeCheckpointResponse(pipelineId: string, action: string, message?: string): boolean {
-  const filePath = path.join(getPipelineDir(pipelineId), "checkpoint_response.json");
+export function writeCheckpointResponse(
+  pipelineId: string,
+  action: string,
+  message?: string,
+  phase?: number,
+): boolean {
+  const dir = getPipelineDir(pipelineId);
+  const filePath = path.join(dir, "checkpoint_response.json");
+  const tmpPath = filePath + `.tmp.${Date.now()}`;
   try {
-    fs.writeFileSync(filePath, JSON.stringify({
+    fs.writeFileSync(tmpPath, JSON.stringify({
       action,
       message: message || "",
+      phase: phase ?? -1,
       timestamp: new Date().toISOString(),
     }));
+    fs.renameSync(tmpPath, filePath);
     return true;
   } catch {
+    try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
     return false;
   }
 }

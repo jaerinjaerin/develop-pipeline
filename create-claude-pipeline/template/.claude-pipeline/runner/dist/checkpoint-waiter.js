@@ -4,7 +4,7 @@ import path from "path";
  * Polls for checkpoint_response.json and resolves when the user responds.
  * Waits indefinitely until the file appears or the abort signal fires.
  */
-export function waitForCheckpoint(pipelinesDir, pipelineId, signal) {
+export function waitForCheckpoint(pipelinesDir, pipelineId, expectedPhase, signal) {
     const filePath = path.join(pipelinesDir, pipelineId, "checkpoint_response.json");
     const POLL_INTERVAL_MS = 2000;
     return new Promise((resolve, reject) => {
@@ -16,20 +16,29 @@ export function waitForCheckpoint(pipelinesDir, pipelineId, signal) {
             try {
                 if (!fs.existsSync(filePath))
                     return;
-                const raw = fs.readFileSync(filePath, "utf-8");
-                const response = JSON.parse(raw);
-                // Delete the file after reading
+                const claimedPath = filePath + ".processing";
                 try {
-                    fs.unlinkSync(filePath);
+                    fs.renameSync(filePath, claimedPath);
                 }
                 catch {
-                    // ignore delete errors
+                    return;
+                }
+                const raw = fs.readFileSync(claimedPath, "utf-8");
+                const response = JSON.parse(raw);
+                fs.unlinkSync(claimedPath);
+                if (response.phase !== undefined && response.phase !== expectedPhase) {
+                    console.log(`[Runner] Discarding orphan checkpoint response for phase ${response.phase} (expected ${expectedPhase})`);
+                    return;
                 }
                 clearInterval(timer);
                 resolve(response);
             }
             catch {
-                // JSON parse error or read error — file may be mid-write, retry next poll
+                const claimedPath = filePath + ".processing";
+                try {
+                    fs.unlinkSync(claimedPath);
+                }
+                catch { /* ignore */ }
             }
         }, POLL_INTERVAL_MS);
         if (signal) {

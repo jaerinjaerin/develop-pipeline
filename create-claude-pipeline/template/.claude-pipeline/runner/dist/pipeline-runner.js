@@ -378,7 +378,7 @@ async function main() {
             stateManager.setStatus("paused");
             console.log(`[Runner] Checkpoint Phase ${phase}: waiting for approval...`);
             try {
-                const response = await waitForCheckpoint(PIPELINES_DIR, PIPELINE_ID);
+                const response = await waitForCheckpoint(PIPELINES_DIR, PIPELINE_ID, phase);
                 if (response.action === "approve") {
                     const msg = response.message
                         ? `Checkpoint Phase ${phase} approved (피드백: ${response.message})`

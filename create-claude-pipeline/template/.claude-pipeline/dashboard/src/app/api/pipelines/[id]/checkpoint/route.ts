@@ -14,7 +14,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   }
 
-  const success = writeCheckpointResponse(params.id, action, message);
+  const success = writeCheckpointResponse(params.id, action, message, state.currentPhase);
   if (!success) {
     return NextResponse.json({ error: "Failed to write checkpoint response" }, { status: 500 });
   }

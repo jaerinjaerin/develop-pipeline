@@ -429,7 +429,7 @@ async function main(): Promise<void> {
       console.log(`[Runner] Checkpoint Phase ${phase}: waiting for approval...`);
 
       try {
-        const response = await waitForCheckpoint(PIPELINES_DIR!, PIPELINE_ID!);
+        const response = await waitForCheckpoint(PIPELINES_DIR!, PIPELINE_ID!, phase);
 
         if (response.action === "approve") {
           const msg = response.message

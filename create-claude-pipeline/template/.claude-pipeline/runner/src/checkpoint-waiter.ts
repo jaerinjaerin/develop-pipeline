@@ -9,6 +9,7 @@ import type { CheckpointResponse } from "./types.js";
 export function waitForCheckpoint(
   pipelinesDir: string,
   pipelineId: string,
+  expectedPhase: number,
   signal?: AbortSignal,
 ): Promise<CheckpointResponse> {
   const filePath = path.join(pipelinesDir, pipelineId, "checkpoint_response.json");
@@ -24,20 +25,28 @@ export function waitForCheckpoint(
       try {
         if (!fs.existsSync(filePath)) return;
 
-        const raw = fs.readFileSync(filePath, "utf-8");
+        const claimedPath = filePath + ".processing";
+        try {
+          fs.renameSync(filePath, claimedPath);
+        } catch {
+          return;
+        }
+
+        const raw = fs.readFileSync(claimedPath, "utf-8");
         const response = JSON.parse(raw) as CheckpointResponse;
 
-        // Delete the file after reading
-        try {
-          fs.unlinkSync(filePath);
-        } catch {
-          // ignore delete errors
+        fs.unlinkSync(claimedPath);
+
+        if (response.phase !== undefined && response.phase !== expectedPhase) {
+          console.log(`[Runner] Discarding orphan checkpoint response for phase ${response.phase} (expected ${expectedPhase})`);
+          return;
         }
 
         clearInterval(timer);
         resolve(response);
       } catch {
-        // JSON parse error or read error — file may be mid-write, retry next poll
+        const claimedPath = filePath + ".processing";
+        try { fs.unlinkSync(claimedPath); } catch { /* ignore */ }
       }
     }, POLL_INTERVAL_MS);
 
