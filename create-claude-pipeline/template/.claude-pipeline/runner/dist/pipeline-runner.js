@@ -321,6 +321,15 @@ async function main() {
     // Start context watcher (fallback: copies root context/ to pipeline context/)
     const contextWatcher = new ContextWatcher(stateManager, PIPELINES_DIR, PIPELINE_ID);
     contextWatcher.start();
+    const abortController = new AbortController();
+    const { signal } = abortController;
+    const gracefulShutdown = (sig) => {
+        console.log(`[Runner] ${sig} received, shutting down...`);
+        abortController.abort();
+        setTimeout(() => process.exit(1), 10_000);
+    };
+    process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+    process.on("SIGINT", () => gracefulShutdown("SIGINT"));
     stateManager.setStatus("running");
     stateManager.addActivity("system", "info", "파이프라인 시작");
     let lastFeedback = "";
@@ -342,7 +351,7 @@ async function main() {
                 prompt += `\n\n## 사용자 피드백 (수정 요청)\n${lastFeedback}\n\n위 피드백을 반영하여 이 Phase를 다시 수행해주세요.`;
             }
             const timeoutMs = PHASE_TIMEOUTS[phase] ?? 15 * 60_000;
-            const result = await runClaude(prompt, timeoutMs);
+            const result = await runClaude(prompt, timeoutMs, signal);
             if (result.code === -1) {
                 stateManager.setStatus("failed");
                 stateManager.addActivity("system", "error", `Phase ${phase} 타임아웃 (${timeoutMs / 60_000}분 초과)`);
@@ -378,7 +387,7 @@ async function main() {
             stateManager.setStatus("paused");
             console.log(`[Runner] Checkpoint Phase ${phase}: waiting for approval...`);
             try {
-                const response = await waitForCheckpoint(PIPELINES_DIR, PIPELINE_ID, phase);
+                const response = await waitForCheckpoint(PIPELINES_DIR, PIPELINE_ID, phase, signal);
                 if (response.action === "approve") {
                     const msg = response.message
                         ? `Checkpoint Phase ${phase} approved (피드백: ${response.message})`

@@ -358,6 +358,17 @@ async function main(): Promise<void> {
   const contextWatcher = new ContextWatcher(stateManager, PIPELINES_DIR!, PIPELINE_ID!);
   contextWatcher.start();
 
+  const abortController = new AbortController();
+  const { signal } = abortController;
+
+  const gracefulShutdown = (sig: string) => {
+    console.log(`[Runner] ${sig} received, shutting down...`);
+    abortController.abort();
+    setTimeout(() => process.exit(1), 10_000);
+  };
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
   stateManager.setStatus("running");
   stateManager.addActivity("system", "info", "파이프라인 시작");
 
@@ -386,7 +397,7 @@ async function main(): Promise<void> {
       }
 
       const timeoutMs = PHASE_TIMEOUTS[phase] ?? 15 * 60_000;
-      const result = await runClaude(prompt, timeoutMs);
+      const result = await runClaude(prompt, timeoutMs, signal);
 
       if (result.code === -1) {
         stateManager.setStatus("failed");
@@ -429,7 +440,7 @@ async function main(): Promise<void> {
       console.log(`[Runner] Checkpoint Phase ${phase}: waiting for approval...`);
 
       try {
-        const response = await waitForCheckpoint(PIPELINES_DIR!, PIPELINE_ID!, phase);
+        const response = await waitForCheckpoint(PIPELINES_DIR!, PIPELINE_ID!, phase, signal);
 
         if (response.action === "approve") {
           const msg = response.message
