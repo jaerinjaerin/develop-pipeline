@@ -113,9 +113,13 @@ export class SignalWatcher extends EventEmitter {
     }
     processActivities() {
         const file = path.join(this.signalsDir, ".activity");
-        if (!fs.existsSync(file))
+        let content;
+        try {
+            content = fs.readFileSync(file, "utf-8");
+        }
+        catch {
             return;
-        const content = fs.readFileSync(file, "utf-8");
+        }
         const lines = content.split("\n").filter(Boolean);
         for (let i = this.activityOffset; i < lines.length; i++) {
             const parts = lines[i].split("|");
@@ -130,17 +134,23 @@ export class SignalWatcher extends EventEmitter {
             }
         }
         this.activityOffset = lines.length;
-        // Truncate if file gets too large (> 100 lines)
         if (lines.length > 100) {
-            fs.unlinkSync(file);
+            try {
+                fs.truncateSync(file, 0);
+            }
+            catch { /* ignore */ }
             this.activityOffset = 0;
         }
     }
     processOutputs() {
         const file = path.join(this.signalsDir, ".output");
-        if (!fs.existsSync(file))
+        let content;
+        try {
+            content = fs.readFileSync(file, "utf-8");
+        }
+        catch {
             return;
-        const content = fs.readFileSync(file, "utf-8");
+        }
         const lines = content.split("\n").filter(Boolean);
         for (let i = this.outputOffset; i < lines.length; i++) {
             const pipeIdx = lines[i].indexOf("|");
@@ -154,7 +164,10 @@ export class SignalWatcher extends EventEmitter {
         }
         this.outputOffset = lines.length;
         if (lines.length > 100) {
-            fs.unlinkSync(file);
+            try {
+                fs.truncateSync(file, 0);
+            }
+            catch { /* ignore */ }
             this.outputOffset = 0;
         }
     }

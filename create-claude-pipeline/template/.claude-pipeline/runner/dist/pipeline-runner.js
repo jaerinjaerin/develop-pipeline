@@ -294,6 +294,28 @@ async function main() {
         stateManager.addActivity("system", "error", "Claude CLI를 찾을 수 없거나 로그인되어 있지 않습니다.");
         process.exit(1);
     }
+    const pidFile = path.join(PIPELINES_DIR, PIPELINE_ID, "runner.pid");
+    fs.writeFileSync(pidFile, String(process.pid));
+    const heartbeatFile = path.join(PIPELINES_DIR, PIPELINE_ID, "heartbeat");
+    fs.writeFileSync(heartbeatFile, String(Date.now()));
+    const heartbeatTimer = setInterval(() => {
+        try {
+            fs.writeFileSync(heartbeatFile, String(Date.now()));
+        }
+        catch { /* ignore */ }
+    }, 10_000);
+    function cleanup() {
+        clearInterval(heartbeatTimer);
+        try {
+            fs.unlinkSync(pidFile);
+        }
+        catch { /* ignore */ }
+        try {
+            fs.unlinkSync(heartbeatFile);
+        }
+        catch { /* ignore */ }
+    }
+    process.on("exit", cleanup);
     // Ensure context directory exists
     fs.mkdirSync(contextDir, { recursive: true });
     // Start context watcher (fallback: copies root context/ to pipeline context/)

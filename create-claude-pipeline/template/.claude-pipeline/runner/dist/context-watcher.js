@@ -31,11 +31,19 @@ export class ContextWatcher {
     seenFiles = new Set();
     lastSignalTime = 0;
     intervals = [];
+    pendingCopies = new Map();
     constructor(stateManager, pipelinesDir, pipelineId) {
         this.stateManager = stateManager;
         this.pipelineContextDir = path.join(pipelinesDir, pipelineId, "context");
-        // Project root is one level up from pipelines dir
         this.rootContextDir = path.join(pipelinesDir, "..", "context");
+        // Restore seenFiles from existing state outputs to prevent duplicate processing on restart
+        const state = stateManager.read();
+        if (state) {
+            for (const output of state.outputs) {
+                const basename = path.basename(output.filename);
+                this.seenFiles.add(basename);
+            }
+        }
     }
     notifySignalProcessed() {
         this.lastSignalTime = Date.now();

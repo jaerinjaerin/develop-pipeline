@@ -13,6 +13,7 @@ export declare class ContextWatcher {
     private seenFiles;
     private lastSignalTime;
     private intervals;
+    private pendingCopies;
     constructor(stateManager: StateManager, pipelinesDir: string, pipelineId: string);
     notifySignalProcessed(): void;
     start(): void;
