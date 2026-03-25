@@ -332,6 +332,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  const pidFile = path.join(PIPELINES_DIR!, PIPELINE_ID!, "runner.pid");
+  fs.writeFileSync(pidFile, String(process.pid));
+
   // Ensure context directory exists
   fs.mkdirSync(contextDir, { recursive: true });
 
