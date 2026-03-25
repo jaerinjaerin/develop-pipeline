@@ -90,10 +90,23 @@ export class ContextWatcher {
         if (this.seenFiles.has(filename))
             return;
         const filePath = path.join(sourceDir, filename);
-        if (!fs.existsSync(filePath))
+        let stat;
+        try {
+            stat = fs.statSync(filePath);
+        }
+        catch {
             return;
+        }
+        // For root fallback copies, wait for file size to stabilize
+        if (isRootFallback) {
+            const prevSize = this.pendingCopies.get(filename);
+            if (prevSize === undefined || prevSize !== stat.size) {
+                this.pendingCopies.set(filename, stat.size);
+                return;
+            }
+            this.pendingCopies.delete(filename);
+        }
         this.seenFiles.add(filename);
-        // If found at project root, copy to pipeline context dir
         if (isRootFallback) {
             const destPath = path.join(this.pipelineContextDir, filename);
             if (!fs.existsSync(destPath)) {
@@ -101,11 +114,11 @@ export class ContextWatcher {
                     fs.copyFileSync(filePath, destPath);
                 }
                 catch {
-                    // copy may fail if file is being written
+                    this.seenFiles.delete(filename);
+                    return;
                 }
             }
         }
-        // Skip state update if SignalWatcher was active recently
         if (Date.now() - this.lastSignalTime < 5000)
             return;
         const phase = CONTEXT_FILE_PHASES[filename];
