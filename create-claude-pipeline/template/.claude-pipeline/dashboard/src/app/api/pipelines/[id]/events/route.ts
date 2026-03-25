@@ -26,7 +26,11 @@ export async function GET(
     // Send initial state
     const initialState = readPipelineState(id);
     if (initialState) {
-      writer.write("pipeline:updated", { id, state: initialState });
+      const { activities: initialActivities, ...initialMeta } = initialState;
+      writer.write("pipeline:updated", { id, state: { ...initialMeta, activitiesCount: initialActivities.length } });
+      for (const activity of initialActivities) {
+        writer.write("pipeline:activity", { id, activity });
+      }
       prevActivitiesCount = initialState.activities.length;
 
       const checkpoint = detectCheckpoint(initialState.activities);
@@ -52,8 +56,9 @@ export async function GET(
         const state = readPipelineState(id);
         if (!state) return;
 
-        // Send full state update
-        writer.write("pipeline:updated", { id, state });
+        // Send full state update (without activities array)
+        const { activities, ...stateMeta } = state;
+        writer.write("pipeline:updated", { id, state: { ...stateMeta, activitiesCount: activities.length } });
 
         // Send new activities individually
         const newActivities = state.activities.slice(prevActivitiesCount);
