@@ -360,8 +360,10 @@ git commit -m "fix: record PID file and handle spawn failure (High 1-2, Medium 4
 
 `main()` 함수에서 10초마다 heartbeat 파일의 mtime을 갱신하고, 종료 시 정리한다.
 
+**주의**: Task 3에서 `process.on("exit", cleanupPid)`를 등록했다. 여기서는 이를 **교체**하여 `cleanup()` 하나로 통합한다. Task 3의 `process.on("exit", cleanupPid)` 라인을 제거하고 아래 코드로 대체한다.
+
 ```typescript
-// main() 시작 부분에 추가
+// main() 시작 부분에 추가 (Task 3의 process.on("exit", cleanupPid) 라인을 제거하고 이것으로 교체)
 const heartbeatFile = path.join(PIPELINES_DIR!, PIPELINE_ID!, "heartbeat");
 fs.writeFileSync(heartbeatFile, String(Date.now()));
 
@@ -371,10 +373,10 @@ const heartbeatTimer = setInterval(() => {
   } catch { /* ignore */ }
 }, 10_000);
 
-// 기존 cleanup에 추가
+// PID + heartbeat 통합 정리 (Task 3의 cleanupPid를 포함)
 function cleanup(): void {
   clearInterval(heartbeatTimer);
-  cleanupPid();
+  try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
   try { fs.unlinkSync(heartbeatFile); } catch { /* ignore */ }
 }
 process.on("exit", cleanup);
@@ -985,14 +987,14 @@ const PIPELINES_DIR = process.env.PIPELINES_DIR
   || path.resolve(__dirname, "..", "..", "..", "..", "pipelines");
 ```
 
-주의: Next.js에서 `__dirname`은 빌드 환경에 따라 다를 수 있으므로, `PIPELINES_DIR` 환경변수가 미설정이면 경고 로그를 출력한다.
+Next.js에서 `__dirname`은 번들링 환경에 따라 신뢰할 수 없으므로, `process.cwd()` fallback은 유지하되 경고 로그를 출력하여 사용자가 환경변수를 명시적으로 설정하도록 유도한다.
 
 ```typescript
 const PIPELINES_DIR = process.env.PIPELINES_DIR
   || (() => {
     const fallback = path.resolve(process.cwd(), "..", "..", "pipelines");
     console.warn(
-      `[pipelines] PIPELINES_DIR not set, using fallback: ${fallback}. ` +
+      `[pipelines] PIPELINES_DIR not set, using cwd-based fallback: ${fallback}. ` +
       `Set PIPELINES_DIR env var for reliable path resolution.`
     );
     return fallback;
